@@ -16,8 +16,8 @@ These are goals to be confirmed by measurement, not claims.
 
 ## Step 1: inspection engine
 
-- [ ] **1a. Foundation**: repo, MIT, SECURITY.md, Go module, CI skeleton (pinned actions, read-only tokens)
-- [ ] **1b. Decoder**: bounded multi-layer normalizer (URL, double URL, `\u` escapes, HTML entities, overlong UTF-8, gzip)
+- [x] **1a. Foundation**: repo, MIT, SECURITY.md, Go module, CI skeleton (pinned actions, read-only tokens)
+- [x] **1b. Decoder**: bounded multi-layer normalizer (URL, double URL, `\u` escapes, HTML entities, overlong UTF-8, gzip)
 - [ ] **1c. Lookup resolver**: emulate Log4j substitution for nested `lower`/`upper`/`::-`/`env:x:-d`/`sys`/`date`; flag unresolvable fragments that could form `jndi`
 - [ ] **1d. Rules and verdicts**: rule IDs mapped to CVEs (44228, 45046, 45105), protocol coverage, DNS-exfil lookups, request model (path, query, headers, body), definite / suspicious / clean tiers
 - [ ] **1e. Corpora and evaluation**: bypass corpus with provenance, benign corpus, reproducible eval report
