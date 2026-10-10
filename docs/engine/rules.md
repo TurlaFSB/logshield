@@ -53,9 +53,29 @@ only form inside one component and may only make sense across several.
   application logs. Invalid UTF-8 is kept, because overlong encodings are an
   evasion technique.
 - Body: whole, plus each name and value for `application/x-www-form-urlencoded`.
+- `multipart/form-data`: each part's name, filename, extra headers and value.
+  Parsing is lenient (CRLF or bare LF, closing boundary optional) because
+  backends differ; the whole body is inspected as well, so a part this parser
+  misses is still covered.
+- Bodies with a declared EBCDIC charset (`IBM037`, `cp500`, `IBM1047`, ...) are
+  additionally converted to ASCII. UTF-16 and UTF-32 need no label: the decoder's
+  `nul-strip` layer reveals them whatever the Content-Type says.
 
 Each detection carries a `Location` (`part` or `part:name`), the decoding `Path`
 that revealed it, the JNDI scheme, a defanged evidence excerpt, and key lookups.
+
+## Configuration checks
+
+`Config.Validate` reports mistakes that would otherwise fail silently: a
+disabled rule ID that does not exist (a typo leaves the rule active), an attempt
+to disable a mandatory rule, and negative limits. The proxy calls it at startup
+and refuses to run on an error.
+
+## Structured output
+
+`Decision` and `Severity` marshal to their names, so a `Verdict` encodes to JSON
+that is safe and readable in logs. `Verdict.RuleIDs()` gives the distinct rules
+for metrics labels.
 
 ## Budgets
 

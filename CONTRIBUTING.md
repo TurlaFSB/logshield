@@ -6,7 +6,8 @@ changes is deliberately high.
 ## Ground rules
 
 - **Tests are required.** Engine changes need table-driven tests, and any bypass
-  fix needs a regression entry in the bypass corpus.
+  fix needs a regression entry in the bypass corpus (see
+  [corpus/README.md](corpus/README.md)).
 - **Payloads must be inert.** Test payloads may only reference reserved names
   (`example.com`, `*.invalid`, `192.0.2.0/24`, `198.51.100.0/24`,
   `203.0.113.0/24`). Never add a payload that calls a live host or ships a
@@ -20,6 +21,7 @@ changes is deliberately high.
 make check   # vet, lint, tests with race detector, coverage floor
 make fuzz    # fuzz the engine (FUZZTIME=30s by default)
 make bench   # benchmarks; mention results if you touch a hot path
+make eval    # regenerate docs/eval/report.md after engine or corpus changes
 make vuln    # govulncheck
 ```
 

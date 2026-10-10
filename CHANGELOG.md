@@ -21,6 +21,13 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   45046 and 45105, three-tier decisions (clean, suspicious, malicious), mandatory
   fail-closed budget rules, and per-rule disabling.
 - `engine.Defang` for log-safe evidence that never contains `${`.
+- Multipart/form-data part inspection; NUL-strip (UTF-16/32), zlib and base64
+  decode layers; EBCDIC-charset bodies; `Config.Validate`; JSON-friendly
+  `Decision`/`Severity`; `Verdict.RuleIDs`.
+- Corpora with provenance (`corpus/`): hand-curated bypass and benign sets,
+  100,000 generated benign requests, a loader that rejects non-inert hosts, and
+  an evaluation harness that enforces the targets and keeps
+  `docs/eval/report.md` in sync (`make eval`).
 - Fuzz targets, benchmarks, and an obfuscation test matrix.
 - CI: lint, race tests with a coverage floor, cross-OS and cross-architecture
   builds, `go mod tidy` check, govulncheck, fuzz smoke, CodeQL, dependency review.

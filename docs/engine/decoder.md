@@ -26,6 +26,9 @@ The search order is fixed, so output is deterministic.
 | `html-entity` | `&#36;`, `&#x24;`, `&dollar;` | Uses the full HTML5 table from the Go standard library. |
 | `overlong-utf8` | Lenient UTF-8 decoders (2-, 3-, 4-byte overlong forms, modified-UTF-8 NUL) | Strictly valid UTF-8 is never touched. |
 | `fullwidth` | Applications that apply Unicode compatibility normalization (NFKC) | Fullwidth ASCII and the small-form dollar and braces fold to ASCII. Invalid bytes pass through unchanged. |
+| `nul-strip` | UTF-16 / UTF-32 text decoded by the backend, including percent-encoded `%00` forms | Removes NUL bytes. Over-approximates (the backend would not strip NULs from a UTF-8 string), which is the safe direction. |
+| `zlib` | `Content-Encoding: deflate` as implemented in practice | Same output cap and truncation handling as `gzip`. |
+| `base64` | Cookies, parameters and headers that applications base64-decode before logging | Only whole values of 12 or more base64 characters that decode to ASCII text (or to a gzip/zlib stream, which then continues the chain). Binary results are dropped, which discards nearly every random token. |
 
 Log4j itself decodes none of these. They matter because the surrounding stack
 often does, and because a WAF that ignores them is trivially bypassed.
@@ -55,7 +58,9 @@ They are tracked here so the omission is a decision, not an oversight.
 
 - Zero-width and soft-hyphen stripping inside `jndi` (the resolver in 1c handles
   nested lookup syntax; invisible characters do not form a valid lookup name).
-- Base64 and raw deflate/zlib/brotli layers.
+- Raw deflate (no header, so it cannot be recognized) and brotli.
+- EBCDIC and other legacy code pages are handled only for request bodies with a
+  declared EBCDIC charset (see [rules](rules.md)).
 - Full Unicode normalization beyond the fullwidth fold above.
 
 If lab validation in Step 3 shows a real stack doing any of these, it becomes a

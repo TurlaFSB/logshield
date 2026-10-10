@@ -59,6 +59,29 @@ remain the correct mitigations.
    host (block outbound LDAP, RMI and DNS except to approved resolvers), which
    stops exploitation even when a payload slips through.
 
+## Parser differentials the engine models
+
+Representation differences between what the engine sees and what the backend
+logs are the main source of bypasses, so each one the engine handles has corpus
+entries (class `parser-differential`):
+
+- Percent, `%uXXXX`, HTML entity, backslash, overlong UTF-8 and fullwidth forms.
+- Gzip and zlib bodies, and base64 values (including base64 of compressed data).
+- UTF-16 and UTF-32 (raw, or percent-encoded with `%00`), whatever the declared
+  charset, and EBCDIC bodies with a declared EBCDIC charset.
+- Basic and Bearer (JWT) credentials, form pairs, and multipart parts.
+
+Known gaps, tracked deliberately:
+
+- Unicode normalization beyond fullwidth ASCII (for example circled or
+  superscript letters under NFKC).
+- Application-specific encodings (custom ciphers, proprietary serialization).
+- A payload assembled from several separate requests or from stored data.
+- Duplicate headers that a backend joins with a separator: the join inserts
+  a delimiter inside the value, which cannot create a valid lookup that was not
+  already visible in one of the parts, so each header is inspected on its own.
+  The proxy still must not alter or re-order headers it forwards.
+
 ## Residual risk
 
 Any signature-style control can be bypassed by an encoding it does not model. The

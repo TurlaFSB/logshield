@@ -33,7 +33,9 @@ flowchart LR
 ```
 
 Decoding, resolution, rules and verdicts are implemented (Steps 1b to 1d; see
-[rules](docs/engine/rules.md)). The test corpora and the proxy are next. See the [threat model](docs/threat-model.md) for what this
+[rules](docs/engine/rules.md)), with a measured
+[evaluation](docs/eval/report.md) against attack and benign corpora (Step 1e). The
+proxy is next. See the [threat model](docs/threat-model.md) for what this
 does and does not protect against.
 
 ## Design goals
