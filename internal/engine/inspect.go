@@ -89,6 +89,10 @@ func (c Config) Validate() error {
 	return errors.Join(errs...)
 }
 
+// Effective returns the configuration with every default filled in, so callers
+// can see the limits Inspect will actually apply.
+func (c Config) Effective() Config { return c.withDefaults() }
+
 func (c Config) withDefaults() Config {
 	c.Limits = c.Limits.withDefaults()
 	if c.MaxFields <= 0 {

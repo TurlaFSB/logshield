@@ -260,3 +260,10 @@ func TestEvidenceIsAlwaysDefanged(t *testing.T) {
 		}
 	}
 }
+
+func TestEffectiveFillsDefaults(t *testing.T) {
+	e := Config{MaxFields: 5}.Effective()
+	if e.MaxFields != 5 || e.MaxRequestBytes != 4<<20 || e.MaxWorkBytes != 32<<20 || e.NestingSuspicious != 4 || e.Limits.MaxDepth == 0 {
+		t.Errorf("Effective = %+v", e)
+	}
+}

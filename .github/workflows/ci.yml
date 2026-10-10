@@ -40,10 +40,14 @@ jobs:
       matrix:
         include:
           # The primary leg also enforces the race detector and coverage floor.
-          - { os: ubuntu-24.04, go: "1.24", primary: true }
-          - { os: ubuntu-24.04, go: stable, primary: false }
-          - { os: macos-latest, go: "1.24", primary: false }
-          - { os: windows-latest, go: "1.24", primary: false }
+          # "stable" and "oldstable" are the two Go releases the Go project still
+          # patches; 1.24 is kept only to prove the module's declared minimum
+          # language version still builds.
+          - { os: ubuntu-24.04, go: stable, primary: true }
+          - { os: ubuntu-24.04, go: oldstable, primary: false }
+          - { os: ubuntu-24.04, go: "1.24", primary: false }
+          - { os: macos-latest, go: stable, primary: false }
+          - { os: windows-latest, go: stable, primary: false }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,6 +55,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go }}
+          check-latest: true
       - name: Vet
         if: matrix.primary
         run: make vet
@@ -89,7 +94,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: stable
+          check-latest: true
       - name: Vet for the target
         run: go vet ./...
       - name: Build for the target
@@ -121,7 +127,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: stable
+          check-latest: true
       - name: Scan for known vulnerabilities
         run: make vuln
 
@@ -135,7 +142,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: stable
+          check-latest: true
       - name: Run every benchmark once
         run: go test ./... -run '^$' -bench . -benchtime=1x
 
@@ -149,6 +157,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: stable
+          check-latest: true
       - name: Fuzz each target briefly
         run: make fuzz FUZZTIME=20s
