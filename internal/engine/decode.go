@@ -2,6 +2,8 @@ package engine
 
 import (
 	"compress/gzip"
+	"compress/zlib"
+	"encoding/base64"
 	"html"
 	"io"
 	"slices"
@@ -24,6 +26,9 @@ const (
 	TransformHTML      Transform = "html-entity"
 	TransformOverlong  Transform = "overlong-utf8"
 	TransformFullwidth Transform = "fullwidth"
+	TransformNUL       Transform = "nul-strip"
+	TransformZlib      Transform = "zlib"
+	TransformBase64    Transform = "base64"
 )
 
 // Budget identifies which resource limit stopped decoding. The zero value means
@@ -187,6 +192,9 @@ var transforms = []transform{
 	{TransformHTML, htmlDecode},
 	{TransformOverlong, overlongDecode},
 	{TransformFullwidth, fullwidthFold},
+	{TransformNUL, nulStrip},
+	{TransformZlib, unzlib},
+	{TransformBase64, base64Decode},
 }
 
 // Decode expands input into every plausible decoded variant.
@@ -244,6 +252,16 @@ func Decode(input string, lim Limits) Result {
 		}
 	}
 	return res
+}
+
+// nulStrip removes NUL bytes. It reveals text sent in UTF-16 or UTF-32 (raw, or
+// percent-encoded as %00), which the receiving stack decodes into the same
+// characters as its ASCII form but which a byte-oriented filter never sees.
+func nulStrip(s string, _ Limits) (string, bool, bool) {
+	if !strings.Contains(s, "\x00") {
+		return s, false, false
+	}
+	return strings.ReplaceAll(s, "\x00", ""), true, false
 }
 
 // unhex converts one hexadecimal digit.
@@ -305,6 +323,79 @@ func gunzip(s string, lim Limits) (string, bool, bool) {
 		return s, false, false
 	}
 	return string(data), true, false
+}
+
+// unzlib inflates zlib-wrapped data (Content-Encoding: deflate as most clients
+// and servers implement it).
+func unzlib(s string, lim Limits) (string, bool, bool) {
+	if len(s) < 2 || s[0]&0x0f != 8 || (int(s[0])<<8|int(s[1]))%31 != 0 {
+		return s, false, false
+	}
+	zr, err := zlib.NewReader(strings.NewReader(s))
+	if err != nil {
+		return s, false, false
+	}
+	defer func() { _ = zr.Close() }()
+
+	data, err := io.ReadAll(io.LimitReader(zr, int64(lim.MaxStageBytes)+1))
+	if len(data) > lim.MaxStageBytes {
+		return s, false, true
+	}
+	if err != nil && len(data) == 0 {
+		return s, false, false
+	}
+	return string(data), true, false
+}
+
+// minBase64 is the shortest value treated as base64 text: the encoding of
+// "${jndi:" is 12 characters.
+const minBase64 = 12
+
+// base64Decode decodes a value that is entirely base64 (standard or URL-safe
+// alphabet, padded or not) into ASCII text. Applications routinely decode
+// base64 cookies, parameters and tokens before logging them. Binary results are
+// ignored, which discards almost every random token.
+func base64Decode(s string, _ Limits) (string, bool, bool) {
+	if len(s) < minBase64 {
+		return s, false, false
+	}
+	for i := 0; i < len(s); i++ {
+		if !isBase64Byte(s[i]) {
+			return s, false, false
+		}
+	}
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		b, err := enc.DecodeString(s)
+		if err != nil {
+			continue
+		}
+		if hasCompressionMagic(string(b)) {
+			return string(b), true, false // gunzip or unzlib continues the chain
+		}
+		for _, c := range b {
+			if c >= 0x80 || c < 0x20 && c != '\t' && c != '\r' && c != '\n' || c == 0x7f {
+				return s, false, false
+			}
+		}
+		return string(b), true, false
+	}
+	return s, false, false
+}
+
+// hasCompressionMagic reports whether s starts like a gzip or zlib stream.
+func hasCompressionMagic(s string) bool {
+	if len(s) < 2 {
+		return false
+	}
+	return s[0] == 0x1f && s[1] == 0x8b || s[0]&0x0f == 8 && (int(s[0])<<8|int(s[1]))%31 == 0
+}
+
+func isBase64Byte(c byte) bool {
+	switch {
+	case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', '0' <= c && c <= '9':
+		return true
+	}
+	return c == '+' || c == '/' || c == '-' || c == '_' || c == '='
 }
 
 // percentDecode decodes %XX sequences. Malformed sequences are left as-is.

