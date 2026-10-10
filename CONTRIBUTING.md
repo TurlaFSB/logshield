@@ -19,7 +19,7 @@ changes is deliberately high.
 
 ```sh
 make check   # vet, lint, tests with race detector, coverage floor
-make fuzz    # fuzz the engine (FUZZTIME=30s by default)
+make fuzz    # fuzz every target (FUZZTIME=30s by default; FUZZ_TARGETS=engine:FuzzInspect for one)
 make bench   # benchmarks; mention results if you touch a hot path
 make eval    # regenerate docs/eval/report.md after engine or corpus changes
 make vuln    # govulncheck

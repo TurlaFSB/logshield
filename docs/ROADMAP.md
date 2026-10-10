@@ -21,7 +21,7 @@ These are goals to be confirmed by measurement, not claims.
 - [x] **1c. Lookup resolver**: emulate Log4j substitution for nested `lower`/`upper`/`::-`/`env:x:-d`/`sys`/`date`; flag unresolvable fragments that could form `jndi`
 - [x] **1d. Rules and verdicts**: rule IDs mapped to CVEs (44228, 45046, 45105), protocol coverage, DNS-exfil lookups, request model (path, query, header names and values, cookies, body), definite / suspicious / clean tiers
 - [x] **1e. Corpora and evaluation**: bypass corpus with provenance, benign corpus, reproducible eval report
-- [ ] **1f. Hardening**: fuzzing, property tests, coverage floor raised to 90%, benchmarks
+- [x] **1f. Hardening**: fuzzing (including corpus-seeded mutation and a weekly long run), property tests, coverage floors (total 97%, engine 98%), benchmark baseline and latency guard
 
 ## Step 2: reverse proxy
 

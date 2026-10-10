@@ -1,6 +1,7 @@
 # LogShield
 
 [![CI](https://github.com/TurlaFSB/logshield/actions/workflows/ci.yml/badge.svg)](https://github.com/TurlaFSB/logshield/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/TurlaFSB/logshield/actions/workflows/codeql.yml/badge.svg)](https://github.com/TurlaFSB/logshield/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A virtual-patch reverse proxy for **Log4Shell-class** attacks (CVE-2021-44228 and
@@ -8,7 +9,7 @@ related). LogShield sits in front of a host that cannot be patched (end-of-life
 OS, vendor-locked appliance, OT/ICS endpoint) and blocks exploit attempts at the
 network layer. It is a **compensating control**, not a fix.
 
-> **Status: pre-alpha.** Step 1 (inspection engine) is in progress. Nothing here
+> **Status: pre-alpha.** Step 1 (inspection engine) is complete; the proxy (Step 2) is next. Nothing here
 > is ready for production use yet. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Why this exists
@@ -34,8 +35,9 @@ flowchart LR
 
 Decoding, resolution, rules and verdicts are implemented (Steps 1b to 1d; see
 [rules](docs/engine/rules.md)), with a measured
-[evaluation](docs/eval/report.md) against attack and benign corpora (Step 1e). The
-proxy is next. See the [threat model](docs/threat-model.md) for what this
+[evaluation](docs/eval/report.md) against attack and benign corpora (Step 1e) and hardened with property tests, fuzzing and
+benchmarks (Step 1f; see [testing](docs/engine/testing.md) and
+[performance](docs/performance.md)). Step 1 is complete; the proxy is next. See the [threat model](docs/threat-model.md) for what this
 does and does not protect against.
 
 ## Design goals

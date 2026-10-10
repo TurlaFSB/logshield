@@ -28,6 +28,11 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   100,000 generated benign requests, a loader that rejects non-inert hosts, and
   an evaluation harness that enforces the targets and keeps
   `docs/eval/report.md` in sync (`make eval`).
+- Property tests (obfuscation, encoding chains, embedding, monotonicity, defang
+  round-trip, decode invariants), corpus-seeded mutation fuzzing, a weekly long
+  fuzz workflow that uploads crashers, a latency guard, a benchmark baseline
+  (`docs/performance.md`), and a benchmark smoke job in CI.
+- Coverage ratchet: 97% total and 98% for the engine package.
 - Fuzz targets, benchmarks, and an obfuscation test matrix.
 - CI: lint, race tests with a coverage floor, cross-OS and cross-architecture
   builds, `go mod tidy` check, govulncheck, fuzz smoke, CodeQL, dependency review.
