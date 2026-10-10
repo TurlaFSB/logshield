@@ -115,8 +115,10 @@ func (p *plan) verify(req *http.Request) error {
 			}
 			break
 		}
-		if b, ok := req.Body.(*bufferedBody); !ok || b != p.body || req.ContentLength != int64(p.bodyLen) {
-			return bad("body is not the inspected buffer")
+		// The HTTP library may wrap the body (Go 1.26 does), so identity cannot be
+		// checked here; RoundTrip replaces whatever arrives with the inspected buffer.
+		if req.Body == nil || req.Body == http.NoBody || req.ContentLength != int64(p.bodyLen) {
+			return bad("body length differs from the inspected buffer")
 		}
 	case bodyStreamed:
 		if _, ok := req.Body.(*streamedBody); !ok && req.Body != nil && req.Body != http.NoBody {
@@ -136,6 +138,13 @@ func (g guardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	if err := pl.verify(req); err != nil {
 		return nil, bodyClose(req, err)
+	}
+	if pl.kind == bodyBuffered && pl.bodyLen > 0 {
+		// Send the inspected bytes themselves, whatever wrapper the library added.
+		orig := req.Body
+		req = req.WithContext(req.Context())
+		req.Body = pl.body
+		_ = orig.Close()
 	}
 	return g.next.RoundTrip(req)
 }

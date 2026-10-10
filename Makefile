@@ -14,7 +14,7 @@ LDFLAGS := -s -w \
 COVER_MIN ?= 97
 # The detection engine is the security boundary and is held to a higher floor.
 ENGINE_COVER_MIN ?= 98
-GOVULNCHECK_VERSION := v1.1.4
+GOVULNCHECK_VERSION := v1.8.0
 FUZZTIME ?= 30s
 FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus
 

@@ -387,6 +387,28 @@ func TestPlanVerifyBodyRules(t *testing.T) {
 		if err := pl.verify(req); !errors.Is(err, errGuard) {
 			t.Errorf("wrong length accepted: %v", err)
 		}
+		req.Body, req.ContentLength = nil, 3
+		if err := pl.verify(req); !errors.Is(err, errGuard) {
+			t.Errorf("missing body accepted: %v", err)
+		}
+	})
+	t.Run("a wrapped body is replaced by the inspected buffer", func(t *testing.T) {
+		pl, req := mk(bodyBuffered, "abc")
+		req.Body, req.ContentLength = io.NopCloser(strings.NewReader("EVIL")), 3
+		req = req.WithContext(withPlan(req.Context(), pl))
+		var sent []byte
+		g := guardTransport{next: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			sent, _ = io.ReadAll(r.Body)
+			return &http.Response{StatusCode: http.StatusNoContent, Body: http.NoBody, Request: r}, nil
+		})}
+		resp, err := g.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if string(sent) != "abc" {
+			t.Errorf("sent %q, want the inspected buffer", sent)
+		}
 	})
 	t.Run("streamed body", func(t *testing.T) {
 		pl, req := mk(bodyStreamed, "")
@@ -475,3 +497,7 @@ func TestClientAbortsBody(t *testing.T) {
 		t.Errorf("response %q, upstream %d", buf[:n], h.up.count())
 	}
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
