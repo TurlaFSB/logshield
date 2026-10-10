@@ -8,19 +8,72 @@ linters:
   default: none
   enable:
     - bodyclose
+    - depguard
     - errcheck
     - errorlint
+    - exhaustive
     - gocritic
     - gosec
     - govet
     - ineffassign
     - misspell
+    - nilerr
     - noctx
+    - nolintlint
+    - prealloc
     - revive
     - staticcheck
+    - thelper
     - unconvert
+    - unparam
     - unused
+    - usestdlibvars
   settings:
+    depguard:
+      rules:
+        # ADR 0002: the inspection engine is a pure function of its input.
+        # It must not be able to reach the network, filesystem, clock,
+        # randomness, process state, or logging, so none of those packages may
+        # be imported by non-test engine code.
+        engine-purity:
+          list-mode: lax
+          files:
+            - "**/internal/engine/*.go"
+            - "**/internal/engine/**/*.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: net
+              desc: the engine must not touch the network (ADR 0002)
+            - pkg: net/http
+              desc: the engine must not touch the network (ADR 0002)
+            - pkg: os
+              desc: the engine must not read process or filesystem state (ADR 0002)
+            - pkg: os/exec
+              desc: the engine must not spawn processes (ADR 0002)
+            - pkg: os/signal
+              desc: the engine must not touch process state (ADR 0002)
+            - pkg: syscall
+              desc: the engine must not make system calls (ADR 0002)
+            - pkg: unsafe
+              desc: the engine must be memory safe (ADR 0002)
+            - pkg: plugin
+              desc: the engine must not load code (ADR 0002)
+            - pkg: time
+              desc: the engine must be deterministic, so no clock (ADR 0002)
+            - pkg: math/rand
+              desc: the engine must be deterministic, so no randomness (ADR 0002)
+            - pkg: math/rand/v2
+              desc: the engine must be deterministic, so no randomness (ADR 0002)
+            - pkg: crypto/rand
+              desc: the engine must be deterministic, so no randomness (ADR 0002)
+            - pkg: log
+              desc: the engine reports through return values, not logs (ADR 0002)
+            - pkg: log/slog
+              desc: the engine reports through return values, not logs (ADR 0002)
+            - pkg: io/ioutil
+              desc: deprecated, and the engine does no I/O (ADR 0002)
+    exhaustive:
+      default-signifies-exhaustive: true
     govet:
       enable-all: true
       disable:
@@ -32,9 +85,13 @@ linters:
         - name: error-return
         - name: error-naming
         - name: unused-parameter
+        - name: var-naming
+        - name: indent-error-flow
+        - name: increment-decrement
+        - name: unreachable-code
   exclusions:
     rules:
-      # Tests may use unchecked helpers and fixed temp paths freely.
+      # Tests may use fixed temp paths and unchecked helpers freely.
       - path: _test\.go
         linters:
           - gosec
