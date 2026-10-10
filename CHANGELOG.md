@@ -12,6 +12,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   ambiguous requests, fail-closed/fail-open inspection errors, defanged
   structured logs, hardened server timeouts, graceful shutdown. See `docs/proxy.md`.
 - `engine.Config.Effective`.
+- Load and latency harness (`make load`, `docs/load-report.md`) with a CI smoke test of the 5 ms added-p99 budget; upstream failure tests (refused, silent, garbage, hung, dying mid-response) with slot and goroutine leak checks.
 - `-read-timeout`, `-client-write-timeout`, `-drain-delay` settings.
 - TLS termination with HTTP/2 (`-tls-cert`, `-tls-key`, `-tls-min-version`), certificate hot-reload, and verified https upstreams with a private CA or server-name override. HTTP/2 differentials are covered by raw-frame tests (ADR 0005).
 - Configuration from a strict JSON file, `LOGSHIELD_*` environment variables and flags (`-config`, `-check-config`, `-disable-rule`); unknown keys and variables are reported. See `docs/configuration.md`.

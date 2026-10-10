@@ -150,6 +150,7 @@ Rules are stable IDs (`LSH-1001` to `LSH-3003`) mapped to CVEs; see
 |---|---|---|
 | Bypass corpus (165 entries, 14 classes, provenance per entry) not blocked | 0 | **0** |
 | Benign requests blocked (111 hand-written + 100,000 generated) | < 0.1% (95% bound) | **0**, bound < 0.0038% |
+| Added latency through the proxy, 1 client (p99) | < 5 ms | **0.7 ms** ([load report](docs/load-report.md)) |
 | Engine cost per request | well under the 5 ms p99 budget | about 4 to 10 µs typical, about 3 ms worst case before fail-closed |
 | Test coverage | at least 97% total, 98% engine | 99.1% total, 99.5% engine |
 
@@ -186,6 +187,7 @@ test against systems you do not own or have written authorization to test.
 | Corpora and provenance | [corpus/README.md](corpus/README.md) |
 | Architecture decisions | [docs/adr/](docs/adr/) |
 | Configuration file, environment, flags | [docs/configuration.md](docs/configuration.md) |
+| Load and latency report | [docs/load-report.md](docs/load-report.md) |
 | Metrics, health checks, overload | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |
 
@@ -197,6 +199,7 @@ Requires Go 1.24 or newer.
 make build        # ./bin/logshield
 make check        # vet, lint, tests with race detector, coverage floors
 make fuzz         # fuzz each target (FUZZTIME=30s by default)
+make load         # latency overhead of the proxy; rewrites docs/load-report.md
 make integration  # proxy in front of real Node, Python and JDK backends
 make bench        # benchmarks
 make eval         # regenerate the evaluation report

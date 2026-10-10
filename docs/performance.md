@@ -1,10 +1,25 @@
 # Performance
 
 Targets: the engine adds well under the project's **p99 < 5 ms** end-to-end latency
-budget (Step 2 measures the proxy as a whole), and worst-case work is bounded by
+budget (the proxy as a whole is measured in [End to end](#end-to-end-the-proxy)), and worst-case work is bounded by
 the budgets in [decoder](engine/decoder.md) and [rules](engine/rules.md).
 
-## Baseline
+## End to end (the proxy)
+
+`make load` sends the same benign workload straight to a fast upstream and through
+the proxy and reports the difference ([load report](load-report.md)). On the 2-vCPU
+cloud VM used for development, with one client the proxy adds **about 0.1 ms at p50
+and 0.7 ms at p99** (4 to 10 times under the 5 ms budget), and every benign request is
+forwarded. With 32 clients the machine is saturated by the load generator, the proxy
+and the upstream together, so latency there is CPU queueing: the proxy sustains about
+8,700 requests/s on two shared cores (the engine is about 40% of the proxy's CPU; the
+rest is Go's HTTP server and client). Measure on production-class hardware before
+sizing a deployment; the lab runs (Step 3b) repeat this on a dedicated host.
+
+CI runs a short version (`load-smoke`) that fails if added p99 with one client
+exceeds 5 ms, which catches order-of-magnitude regressions on noisy shared runners.
+
+## Engine baseline
 
 Measured with `make bench` (`go test -bench . -benchmem -count=3`, median of 3) on:
 Go 1.24.7, linux/amd64, Intel Xeon @ 2.10 GHz, 2 vCPUs
@@ -51,5 +66,5 @@ Reading the numbers:
 
 ## Not yet measured
 
-End-to-end proxy throughput and latency (Step 2c), memory under concurrent load,
-and behavior on production-shaped traffic.
+Memory under concurrent load, throughput and latency on production-class hardware
+(Step 3b), and behavior on production-shaped traffic.
