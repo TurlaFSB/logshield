@@ -16,7 +16,7 @@ COVER_MIN ?= 97
 ENGINE_COVER_MIN ?= 98
 GOVULNCHECK_VERSION := v1.8.0
 FUZZTIME ?= 30s
-FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus
+FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus proxy:FuzzNothingMaliciousLeaves
 
 .PHONY: help build test race cover cover-check fuzz bench eval fmt vet lint vuln check
 

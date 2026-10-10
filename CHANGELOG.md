@@ -12,6 +12,10 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   ambiguous requests, fail-closed/fail-open inspection errors, defanged
   structured logs, hardened server timeouts, graceful shutdown. See `docs/proxy.md`.
 - `engine.Config.Effective`.
+- Proxy fuzz target `FuzzNothingMaliciousLeaves`; `CODE_OF_CONDUCT.md`, `SUPPORT.md`; README rewritten.
+
+### Fixed
+- Proxy guard no longer depends on body identity, which Go 1.26 changes by wrapping bodies; it now sends the inspected buffer itself.
 - Bounded multi-layer decoder (`engine.Decode`): gzip, percent, `%uXXXX`,
   backslash escapes, HTML entities, overlong UTF-8, fullwidth folding, with
   fail-closed budgets.
