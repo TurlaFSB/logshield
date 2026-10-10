@@ -88,3 +88,13 @@ Any signature-style control can be bypassed by an encoding it does not model. Th
 project measures this instead of ignoring it: a bypass corpus with provenance, a
 benign corpus for false positives, and differential validation against a real
 vulnerable Log4j in the lab (Step 3c).
+
+## Proxy-level differentials (Step 2a)
+
+The proxy removes framing differentials toward the backend by re-serializing
+every request (single `Content-Length`, no `Transfer-Encoding`, no trailers),
+sends the request target verbatim, rejects `CONNECT`, `Upgrade`, non-origin-form
+targets, `//` prefixes and `#`, and verifies at the last hop that what leaves
+equals what was inspected. Remaining: requests rejected by Go's own parser are
+unobserved, and unsupported protocols (WebSocket) are refused. Details in
+[proxy](proxy.md).

@@ -7,6 +7,11 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 ## [Unreleased]
 
 ### Added
+- Reverse proxy (`internal/proxy`, `cmd/logshield`): monitor and block modes,
+  request normalization with a forwarded-equals-inspected guard, rejection of
+  ambiguous requests, fail-closed/fail-open inspection errors, defanged
+  structured logs, hardened server timeouts, graceful shutdown. See `docs/proxy.md`.
+- `engine.Config.Effective`.
 - Bounded multi-layer decoder (`engine.Decode`): gzip, percent, `%uXXXX`,
   backslash escapes, HTML entities, overlong UTF-8, fullwidth folding, with
   fail-closed budgets.

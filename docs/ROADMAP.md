@@ -25,7 +25,7 @@ These are goals to be confirmed by measurement, not claims.
 
 ## Step 2: reverse proxy
 
-- [ ] **2a. Proxy core**: size and time limits, fail-open / fail-closed, `monitor` and `block` modes, log output that defangs `${`; forward exactly the bytes that were inspected and reject ambiguous requests (parser differentials: `Content-Length` vs `Transfer-Encoding`, duplicate headers, obs-fold, invalid characters), per the [threat model](threat-model.md)
+- [x] **2a. Proxy core**: size and time limits, fail-open / fail-closed, `monitor` and `block` modes, log output that defangs `${`; forward exactly the bytes that were inspected and reject ambiguous requests (parser differentials: `Content-Length` vs `Transfer-Encoding`, duplicate headers, obs-fold, invalid characters), per the [threat model](threat-model.md)
 - [ ] **2b. Observability**: Prometheus metrics (block rate, monitor-mode hits, latency histogram), config file, health check
 - [ ] **2c. Proxy tests**: integration tests, load test, latency benchmark
 
