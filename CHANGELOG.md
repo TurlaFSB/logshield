@@ -14,6 +14,13 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   defaults, `lower`/`upper`/`date`, environment-dependent lookups, Java-faithful
   case folding, re-expansion of results and of the assembled output, JNDI and
   possible-JNDI findings with scheme, key, obfuscation and exfiltration signals.
+- Request inspection (`engine.Inspect`): request model with method, target,
+  query, headers (names and values, duplicates kept), cookies, form and raw
+  bodies, and base64 unwrapping of Basic and Bearer (JWT) credentials.
+- Rule catalogue (`engine.Rules`) with stable IDs mapped to CVE-2021-44228,
+  45046 and 45105, three-tier decisions (clean, suspicious, malicious), mandatory
+  fail-closed budget rules, and per-rule disabling.
+- `engine.Defang` for log-safe evidence that never contains `${`.
 - Fuzz targets, benchmarks, and an obfuscation test matrix.
 - CI: lint, race tests with a coverage floor, cross-OS and cross-architecture
   builds, `go mod tidy` check, govulncheck, fuzz smoke, CodeQL, dependency review.

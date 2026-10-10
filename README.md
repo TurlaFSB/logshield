@@ -32,8 +32,8 @@ flowchart LR
     V -- suspicious or budget exceeded --> B[Block or monitor]
 ```
 
-Decoding and resolution are implemented (Steps 1b and 1c). Rules, verdicts and
-the proxy are next. See the [threat model](docs/threat-model.md) for what this
+Decoding, resolution, rules and verdicts are implemented (Steps 1b to 1d; see
+[rules](docs/engine/rules.md)). The test corpora and the proxy are next. See the [threat model](docs/threat-model.md) for what this
 does and does not protect against.
 
 ## Design goals
