@@ -5,9 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
-	"net/http"
 	"net/url"
 	"strings"
+)
+
+// HTTP methods, defined here so that this package does not import net/http
+// (which would pull the HTTP/2 stack into govulncheck's reachability analysis
+// for no reason).
+const (
+	methodGet   = "GET"
+	methodPost  = "POST"
+	methodPut   = "PUT"
+	methodPatch = "PATCH"
 )
 
 var words = strings.Fields(`account address admin alpha archive audit backup basket billing branch browse cache calendar
@@ -173,7 +182,7 @@ func (g *gen) body() (contentType, body string) {
 }
 
 func (g *gen) request() Request {
-	r := Request{Method: g.pick([]string{http.MethodGet, http.MethodGet, http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions})}
+	r := Request{Method: g.pick([]string{methodGet, methodGet, methodGet, methodPost, methodPut, "DELETE", methodPatch, "HEAD", "OPTIONS"})}
 	r.Target = g.path() + g.query()
 	r.Headers = [][2]string{{"Host", g.word() + ".example.com"}, {"User-Agent", g.pick(userAgents)}}
 	add := func(n, v string) { r.Headers = append(r.Headers, [2]string{n, v}) }
@@ -202,7 +211,7 @@ func (g *gen) request() Request {
 	for i, n := 0, g.rng.IntN(4); i < n; i++ {
 		add("X-"+capitalize(g.word())+"-"+capitalize(g.word()), g.phrase())
 	}
-	if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+	if r.Method == methodPost || r.Method == methodPut || r.Method == methodPatch {
 		ct, body := g.body()
 		add("Content-Type", ct)
 		r.Body = body
