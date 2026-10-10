@@ -34,8 +34,14 @@ const (
 	PartCookieName    = "cookie-name"
 	PartCookieValue   = "cookie-value"
 	PartBody          = "body"
+	PartBodyCharset   = "body-charset-decoded"
 	PartFormName      = "form-name"
 	PartFormValue     = "form-value"
+
+	PartMultipartName     = "multipart-name"
+	PartMultipartFilename = "multipart-filename"
+	PartMultipartHeader   = "multipart-header"
+	PartMultipartValue    = "multipart-value"
 )
 
 // Location says where in the request a detection was made.
@@ -116,11 +122,26 @@ func extractFields(req Request, cfg Config) ([]field, Budget) {
 	if len(req.Body) > 0 {
 		body := string(req.Body)
 		add(PartBody, "", body)
-		if mediaType(req.Headers) == "application/x-www-form-urlencoded" {
+		if ebcdicLabel(charsetParam(req.Headers)) {
+			add(PartBodyCharset, "", ebcdicToASCII(body))
+		}
+		switch mediaType(req.Headers) {
+		case "application/x-www-form-urlencoded":
 			forEachPair(body, "&", func(name, value string) {
 				add(PartFormName, "", name)
 				add(PartFormValue, name, value)
 			})
+		case "multipart/form-data":
+			if boundary := boundaryParam(req.Headers); boundary != "" {
+				forEachPart(body, boundary, func(p mpPart) {
+					add(PartMultipartName, "", p.name)
+					add(PartMultipartFilename, p.name, p.filename)
+					for _, h := range p.headers {
+						add(PartMultipartHeader, h.Name, h.Value)
+					}
+					add(PartMultipartValue, p.name, p.value)
+				})
+			}
 		}
 	}
 
@@ -217,4 +238,92 @@ func isText(b []byte) bool {
 		}
 	}
 	return true
+}
+
+// boundaryParam returns the multipart boundary from Content-Type, or "".
+func boundaryParam(headers []Header) string {
+	for _, h := range headers {
+		if strings.EqualFold(h.Name, "Content-Type") {
+			return headerParam(h.Value, "boundary")
+		}
+	}
+	return ""
+}
+
+// headerParam returns the value of a ;-separated parameter such as
+// name="x" in a header value, matching the parameter name case-insensitively.
+// Quotes are removed; escapes inside quotes are not interpreted, which keeps
+// the raw text available for inspection.
+func headerParam(value, param string) string {
+	_, rest, _ := strings.Cut(value, ";")
+	for rest != "" {
+		var item string
+		item, rest, _ = strings.Cut(rest, ";")
+		k, v, ok := strings.Cut(item, "=")
+		if !ok || !strings.EqualFold(strings.TrimSpace(k), param) {
+			continue
+		}
+		v = strings.TrimSpace(v)
+		if len(v) >= 2 && v[0] == '"' && v[len(v)-1] == '"' {
+			v = v[1 : len(v)-1]
+		}
+		return v
+	}
+	return ""
+}
+
+// mpPart is one multipart/form-data part.
+type mpPart struct {
+	name, filename string
+	headers        []Header
+	value          string
+}
+
+// forEachPart splits a multipart body leniently and in linear time. Backends
+// differ in how strictly they parse multipart, so this accepts both CRLF and
+// bare LF and does not insist on a closing boundary. The whole body is
+// inspected as well, so a part this parser misses is still covered.
+func forEachPart(body, boundary string, fn func(mpPart)) {
+	delim := "--" + boundary
+	chunks := strings.Split(body, delim)
+	for i, chunk := range chunks {
+		if i == 0 || strings.HasPrefix(chunk, "--") {
+			continue // preamble and the closing delimiter
+		}
+		chunk = strings.TrimPrefix(chunk, "\r\n")
+		chunk = strings.TrimPrefix(chunk, "\n")
+		head, value, ok := cutHeaderBlock(chunk)
+		if !ok {
+			continue
+		}
+		var p mpPart
+		p.value = strings.TrimSuffix(strings.TrimSuffix(value, "\n"), "\r")
+		for _, line := range strings.Split(head, "\n") {
+			line = strings.TrimSuffix(line, "\r")
+			name, val, found := strings.Cut(line, ":")
+			if !found {
+				continue
+			}
+			name, val = strings.TrimSpace(name), strings.TrimSpace(val)
+			p.headers = append(p.headers, Header{Name: name, Value: val})
+			if strings.EqualFold(name, "Content-Disposition") {
+				p.name = headerParam(val, "name")
+				p.filename = headerParam(val, "filename")
+			}
+		}
+		fn(p)
+	}
+}
+
+// cutHeaderBlock splits a part at its first blank line.
+func cutHeaderBlock(s string) (head, value string, ok bool) {
+	i := strings.Index(s, "\r\n\r\n")
+	j := strings.Index(s, "\n\n")
+	switch {
+	case i >= 0 && (j < 0 || i < j):
+		return s[:i], s[i+4:], true
+	case j >= 0:
+		return s[:j], s[j+2:], true
+	}
+	return "", "", false
 }

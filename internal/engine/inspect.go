@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,6 +36,10 @@ func (d Decision) String() string {
 	}
 }
 
+// MarshalText implements encoding.TextMarshaler so that JSON logs carry the
+// stable name instead of a number.
+func (d Decision) MarshalText() ([]byte, error) { return []byte(d.String()), nil }
+
 // Config tunes Inspect. The zero value is safe and bounded.
 type Config struct {
 	// Limits bounds decoding and lookup resolution for each field.
@@ -51,6 +57,36 @@ type Config struct {
 	// Disabled lists rules to switch off, for tuning false positives. Mandatory
 	// (budget) rules ignore this.
 	Disabled []RuleID
+}
+
+// Validate reports configuration mistakes that would otherwise fail silently:
+// disabling a rule that does not exist (a typo would leave the intended rule
+// active), disabling a mandatory fail-closed rule, or negative limits.
+func (c Config) Validate() error {
+	var errs []error
+	for _, id := range c.Disabled {
+		info, ok := ruleInfo(id)
+		switch {
+		case !ok:
+			errs = append(errs, fmt.Errorf("unknown rule %q in Disabled", id))
+		case info.Mandatory:
+			errs = append(errs, fmt.Errorf("rule %s (%s) is mandatory and cannot be disabled", id, info.Name))
+		}
+	}
+	for name, v := range map[string]int{
+		"MaxFields": c.MaxFields, "MaxRequestBytes": c.MaxRequestBytes,
+		"MaxWorkBytes": c.MaxWorkBytes, "NestingSuspicious": c.NestingSuspicious,
+		"Limits.MaxInputBytes": c.Limits.MaxInputBytes, "Limits.MaxDepth": c.Limits.MaxDepth,
+		"Limits.MaxStages": c.Limits.MaxStages, "Limits.MaxStageBytes": c.Limits.MaxStageBytes,
+		"Limits.MaxTotalBytes": c.Limits.MaxTotalBytes, "Limits.MaxNesting": c.Limits.MaxNesting,
+		"Limits.MaxLookups": c.Limits.MaxLookups, "Limits.MaxValueBytes": c.Limits.MaxValueBytes,
+	} {
+		if v < 0 {
+			errs = append(errs, fmt.Errorf("%s must not be negative (got %d); use 0 for the default", name, v))
+		}
+	}
+	slices.SortFunc(errs, func(a, b error) int { return strings.Compare(a.Error(), b.Error()) })
+	return errors.Join(errs...)
 }
 
 func (c Config) withDefaults() Config {
@@ -102,6 +138,18 @@ type Verdict struct {
 
 // Complete reports whether the request was analyzed within every budget.
 func (v Verdict) Complete() bool { return v.Exhausted == BudgetNone }
+
+// RuleIDs returns the distinct rules that fired, sorted, for metrics and logs.
+func (v Verdict) RuleIDs() []RuleID {
+	var out []RuleID
+	for _, d := range v.Detections {
+		if !slices.Contains(out, d.Rule) {
+			out = append(out, d.Rule)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
 
 // Has reports whether any detection was made by rule.
 func (v Verdict) Has(rule RuleID) bool {
@@ -170,6 +218,17 @@ func (in *inspector) add(d Detection) {
 		return
 	}
 	d.Severity = info.Severity
+	// Everything derived from the request is defanged here, once, so no detection
+	// can carry an active lookup into a log line.
+	d.Evidence = Defang(d.Evidence, maxEvidence)
+	d.Scheme = Defang(d.Scheme, maxEvidence)
+	if len(d.KeyLookups) > 0 {
+		kl := make([]string, len(d.KeyLookups))
+		for i, k := range d.KeyLookups {
+			kl[i] = Defang(k, maxEvidence)
+		}
+		d.KeyLookups = kl
+	}
 	key := string(d.Rule) + "|" + d.Location.String() + "|" + d.Evidence
 	if _, dup := in.seen[key]; dup {
 		return
@@ -214,13 +273,13 @@ func (in *inspector) evaluate(loc Location, path []Transform, res Resolution) {
 	for _, f := range res.Findings {
 		d := Detection{
 			Location: loc, Path: path, Scheme: f.Scheme,
-			Evidence:   Defang(f.Key, maxEvidence),
+			Evidence:   f.Key,
 			KeyLookups: f.KeyLookups,
 		}
 		switch f.Kind {
 		case FindingJNDI:
 			d.Rule = RuleJNDI
-			if f.Obfuscated || f.Expanded || f.Depth > 0 || len(path) > 0 || loc.Part == PartHeaderDecoded {
+			if f.Obfuscated || f.Expanded || f.Depth > 0 || len(path) > 0 || loc.Part == PartHeaderDecoded || loc.Part == PartBodyCharset {
 				d.Rule = RuleJNDIEvasive
 			}
 			in.add(d)

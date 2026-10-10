@@ -571,8 +571,10 @@ func FuzzInspect(f *testing.F) {
 			if !ok || info.Severity != d.Severity {
 				t.Fatalf("detection with unknown rule or wrong severity: %+v", d)
 			}
-			if strings.Contains(d.Evidence, "${") {
-				t.Fatalf("evidence %q contains an active lookup", d.Evidence)
+			for _, text := range append([]string{d.Evidence, d.Scheme}, d.KeyLookups...) {
+				if strings.Contains(text, "${") {
+					t.Fatalf("%s carries an active lookup: %q", d.Rule, text)
+				}
 			}
 			if len(d.Evidence) > maxEvidence+16 {
 				t.Fatalf("evidence of %d bytes exceeds the cap", len(d.Evidence))

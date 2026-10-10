@@ -62,6 +62,10 @@ func (s Severity) String() string {
 	}
 }
 
+// MarshalText implements encoding.TextMarshaler so that JSON logs carry the
+// stable name instead of a number.
+func (s Severity) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
+
 // RuleInfo documents a rule.
 type RuleInfo struct {
 	ID          RuleID
