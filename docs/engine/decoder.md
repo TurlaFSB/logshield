@@ -28,7 +28,7 @@ The search order is fixed, so output is deterministic.
 | `fullwidth` | Applications that apply Unicode compatibility normalization (NFKC) | Fullwidth ASCII and the small-form dollar and braces fold to ASCII. Invalid bytes pass through unchanged. |
 | `nul-strip` | UTF-16 / UTF-32 text decoded by the backend, including percent-encoded `%00` forms | Removes NUL bytes. Over-approximates (the backend would not strip NULs from a UTF-8 string), which is the safe direction. |
 | `zlib` | `Content-Encoding: deflate` as implemented in practice | Same output cap and truncation handling as `gzip`. |
-| `base64` | Cookies, parameters and headers that applications base64-decode before logging | Only whole values of 12 or more base64 characters that decode to ASCII text (or to a gzip/zlib stream, which then continues the chain). Binary results are dropped, which discards nearly every random token. |
+| `base64` | Cookies, parameters and headers that applications base64-decode before logging | Only whole values of 12 or more base64 characters that decode to valid UTF-8 text without control characters (or to a gzip/zlib stream, which then continues the chain). Binary results are dropped, which discards nearly every random token. |
 
 Log4j itself decodes none of these. They matter because the surrounding stack
 often does, and because a WAF that ignores them is trivially bypassed.

@@ -352,7 +352,7 @@ func unzlib(s string, lim Limits) (string, bool, bool) {
 const minBase64 = 12
 
 // base64Decode decodes a value that is entirely base64 (standard or URL-safe
-// alphabet, padded or not) into ASCII text. Applications routinely decode
+// alphabet, padded or not) into text. Applications routinely decode
 // base64 cookies, parameters and tokens before logging them. Binary results are
 // ignored, which discards almost every random token.
 func base64Decode(s string, _ Limits) (string, bool, bool) {
@@ -372,8 +372,11 @@ func base64Decode(s string, _ Limits) (string, bool, bool) {
 		if hasCompressionMagic(string(b)) {
 			return string(b), true, false // gunzip or unzlib continues the chain
 		}
+		if !utf8.Valid(b) {
+			return s, false, false
+		}
 		for _, c := range b {
-			if c >= 0x80 || c < 0x20 && c != '\t' && c != '\r' && c != '\n' || c == 0x7f {
+			if c < 0x20 && c != '\t' && c != '\r' && c != '\n' || c == 0x7f {
 				return s, false, false
 			}
 		}

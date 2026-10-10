@@ -512,7 +512,7 @@ func TestDecodeBase64(t *testing.T) {
 	}
 	// Ignored: too short, not base64, binary result, control bytes, non-ASCII.
 	binary := base64.StdEncoding.EncodeToString([]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08})
-	high := base64.StdEncoding.EncodeToString([]byte("caf\xc3\xa9 caf\xc3\xa9"))
+	high := base64.StdEncoding.EncodeToString([]byte("caf\xe9 caf\xe9 caf\xe9")) // Latin-1, not UTF-8
 	del := base64.StdEncoding.EncodeToString([]byte("aaaaaaaa\x7f"))
 	for _, in := range []string{"aGk=", "abc def ghi jkl", "internationalization", binary, high, del, "AAAA AAAA AAAA", strings.Repeat("A", 12) + "!"} {
 		if r := Decode(in, Limits{}); len(r.Stages) != 1 {
@@ -534,5 +534,12 @@ func TestDecodeBase64ThenCompression(t *testing.T) {
 		if !found {
 			t.Errorf("%s inside base64 not unpacked: %d stages", name, len(res.Stages))
 		}
+	}
+}
+
+func TestDecodeBase64KeepsNonASCIIText(t *testing.T) {
+	in := base64.StdEncoding.EncodeToString([]byte("caf\u00e9 \u6f22\u5b57 \U0001F600 ok"))
+	if res := Decode(in, Limits{}); !hasStage(res, "caf\u00e9 \u6f22\u5b57 \U0001F600 ok", TransformBase64) {
+		t.Errorf("UTF-8 base64 text not decoded: %q", res.Stages)
 	}
 }
