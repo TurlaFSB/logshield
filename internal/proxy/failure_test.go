@@ -68,7 +68,7 @@ func TestUpstreamFailureModes(t *testing.T) {
 			_, _ = io.CopyN(io.Discard, c, 16)
 			_, _ = io.WriteString(c, "not http at all\r\n\r\n")
 		}), nil, http.StatusBadGateway, reasonUpstream},
-		{"never answers", serveRaw(t, func(c net.Conn) { time.Sleep(3 * time.Second) }), func(c *Config) {
+		{"never answers", serveRaw(t, func(net.Conn) { time.Sleep(3 * time.Second) }), func(c *Config) {
 			tr := DefaultTransport()
 			tr.ResponseHeaderTimeout = 200 * time.Millisecond
 			c.Transport = tr

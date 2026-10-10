@@ -206,7 +206,15 @@ func TestAdminEndpoints(t *testing.T) {
 	if code, _ := do("http://"+admin+"/readyz", ""); code != 200 {
 		t.Errorf("readyz %d", code)
 	}
-	_, metrics := do("http://"+admin+"/metrics", "")
+	// Events are recorded just after the response is sent, so poll briefly.
+	var metrics string
+	for i := 0; i < 100; i++ {
+		_, metrics = do("http://"+admin+"/metrics", "")
+		if strings.Contains(metrics, `action="blocked"`) && strings.Contains(metrics, `action="forwarded"`) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 	for _, want := range []string{
 		`logshield_requests_total{action="forwarded",decision="clean",mode="block"} 1`,
 		`logshield_requests_total{action="blocked",decision="malicious",mode="block"} 1`,
