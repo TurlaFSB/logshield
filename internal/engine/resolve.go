@@ -21,7 +21,10 @@ import "strings"
 //   - the "$${" escape is not honored (the inner lookup is analyzed anyway);
 //   - an unterminated "${" is analyzed as if it were closed at the end of the
 //     text, because the application may append a "}" before logging;
-//   - values returned by lookups are re-scanned for further "${", as Log4j does.
+//   - values returned by lookups are re-scanned for further "${", as Log4j does;
+//   - the assembled output is re-scanned once, so a "${" formed by two adjacent
+//     lookup values (for example ${::-$}${::-{}jndi:...}) is not missed if a
+//     later substitution pass runs over the result.
 
 // unknownRune stands for text that cannot be determined statically. U+FFFF is a
 // Unicode noncharacter, and any real occurrence in the input is replaced first.
@@ -88,7 +91,9 @@ type Finding struct {
 // Resolution.Total but not listed.
 type Lookup struct {
 	Offset int
-	Depth  int
+	// Expanded is true when the lookup was found in lookup-generated text.
+	Expanded bool
+	Depth    int
 	// Prefix is the lower-cased lookup prefix, "" when there is none. Unknown
 	// characters appear as '?'.
 	Prefix string
@@ -148,7 +153,19 @@ func Resolve(text string, lim Limits) Resolution {
 	}
 
 	r := &resolver{lim: lim, res: &res}
-	r.evalParts(root, 0, false)
+	assemble := false
+	for _, p := range root.parts {
+		if p.lookup != nil {
+			assemble = true
+			break
+		}
+	}
+	assembled := r.evalParts(root, 0, assemble, lim.MaxStageBytes, BudgetStageBytes)
+	if assemble && r.exhausted == BudgetNone && assembled != text && strings.Contains(assembled, "${") {
+		// One extra pass over the assembled output. Findings and lookups from it
+		// are marked Expanded.
+		r.expandText(assembled, 0)
+	}
 	res.Exhausted = r.exhausted
 	return res
 }
@@ -284,8 +301,9 @@ type evalResult struct {
 }
 
 // evalParts evaluates a node's content. When build is false only the lookups
-// are evaluated and no string is assembled.
-func (r *resolver) evalParts(n *lookupNode, depth int, build bool) string {
+// are evaluated and no string is assembled. When build is true, assembling more
+// than limit bytes exhausts the over budget.
+func (r *resolver) evalParts(n *lookupNode, depth int, build bool, limit int, over Budget) string {
 	var sb strings.Builder
 	for _, p := range n.parts {
 		if r.exhausted != BudgetNone {
@@ -295,15 +313,15 @@ func (r *resolver) evalParts(n *lookupNode, depth int, build bool) string {
 			if build {
 				sb.WriteString(n.literal(p))
 			}
-			continue
-		}
-		v := r.evalNode(p.lookup, depth)
-		if build {
-			sb.WriteString(v.val)
-			if sb.Len() > r.lim.MaxValueBytes {
-				r.exhaust(BudgetValueBytes)
-				return ""
+		} else {
+			v := r.evalNode(p.lookup, depth)
+			if build {
+				sb.WriteString(v.val)
 			}
+		}
+		if build && sb.Len() > limit {
+			r.exhaust(over)
+			return ""
 		}
 	}
 	return sb.String()
@@ -316,7 +334,7 @@ func (r *resolver) expandText(s string, depth int) string {
 		r.exhaust(b)
 		return ""
 	}
-	return r.evalParts(root, depth, true)
+	return r.evalParts(root, depth, true, r.lim.MaxValueBytes, BudgetValueBytes)
 }
 
 func (r *resolver) evalNode(n *lookupNode, depth int) evalResult {
@@ -382,6 +400,7 @@ func (r *resolver) evalNode(n *lookupNode, depth int) evalResult {
 
 	r.res.Lookups = append(r.res.Lookups, Lookup{
 		Offset:       n.offset,
+		Expanded:     n.expanded,
 		Depth:        depth,
 		Prefix:       display(lp),
 		Known:        known,

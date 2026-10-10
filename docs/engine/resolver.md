@@ -69,6 +69,7 @@ distinct, serious signal.
 | Treats `$${` as an escaped literal | Analyzes the inner lookup anyway | A later pass elsewhere in the pipeline may expand it |
 | Ignores an unterminated `${` | Analyzes it as if closed at the end of the text | The application may append a `}` before logging; marked `Unterminated` |
 | Case-folds with the JVM locale | Assumes a non-Turkic locale | Documented limit |
+| Substitutes each lookup once and moves on | Re-scans the assembled output once | Two adjacent values can form a new `${` (for example `${::-$}${::-{}jndi:...}`); a later substitution pass in the logging pipeline would run it. Such findings are marked `Expanded`. |
 
 ## Budgets (fail-closed)
 
@@ -77,6 +78,7 @@ distinct, serious signal.
 | `MaxNesting` | 16 | `nesting`; the parser is iterative, so a megabyte of `${` cannot overflow the stack |
 | `MaxLookups` | 2048 | `lookups`, counting re-expansion of results |
 | `MaxValueBytes` | 32 KiB | `value-bytes`, for any name or computed value |
+| `MaxStageBytes` | 2 MiB | `stage-bytes`, for the assembled output re-scanned at the end |
 
 Plain placeholders such as `${name}` (no colon, no nesting) are folded back into
 literal text and do not count, so shell scripts and JavaScript template strings
@@ -90,7 +92,8 @@ caller must block.
 - `Lookups` lists every non-trivial lookup, so rules can also flag
   environment-dependent lookups that are not JNDI.
 - `MaxNesting` and `Total` feed the recursion-DoS rule (CVE-2021-45105) in 1d.
-- `Finding.Expanded` means the offset is relative to lookup-generated text.
+- `Finding.Expanded` and `Lookup.Expanded` mean the offset is relative to
+  lookup-generated text, not the original input.
 
 ## Known limits
 
@@ -106,8 +109,8 @@ caller must block.
 ## Measured cost
 
 On the development machine (2 vCPU, Go 1.24): a header with no lookup takes
-about 37 ns with no allocation; a plain exploit about 0.55 us; a fully
-obfuscated exploit about 3.3 us; 64 KiB of template-heavy text about 0.4 ms. The
+about 40 ns with no allocation; a plain exploit about 0.6 us; a fully
+obfuscated exploit about 4 us; 64 KiB of template-heavy text about 0.4 ms. The
 engine is far inside the 5 ms latency target; the budget bounds the adversarial
 worst case.
 
