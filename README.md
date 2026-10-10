@@ -93,6 +93,9 @@ live `${`, so the log itself cannot re-trigger a vulnerable log pipeline):
 | `-admin-listen` | off | Address for `/metrics`, `/healthz`, `/readyz` ([observability](docs/observability.md)). |
 | `-max-in-flight` | 1024 | Concurrency limit; the next request gets `503` + `Retry-After`. `-1` disables. |
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |
+| `-disable-rule` | none | Switch off a non-mandatory rule by ID. Repeatable. |
+| `-config` | none | JSON configuration file; environment variables `LOGSHIELD_*` and flags override it ([configuration](docs/configuration.md)). |
+| `-check-config` | | Validate everything, print the effective configuration, and exit. |
 | `-version` | | Print version and exit. |
 
 Details, policies and limitations: [docs/proxy.md](docs/proxy.md).
@@ -179,6 +182,7 @@ test against systems you do not own or have written authorization to test.
 | Evaluation report and performance | [docs/eval/report.md](docs/eval/report.md), [docs/performance.md](docs/performance.md) |
 | Corpora and provenance | [corpus/README.md](corpus/README.md) |
 | Architecture decisions | [docs/adr/](docs/adr/) |
+| Configuration file, environment, flags | [docs/configuration.md](docs/configuration.md) |
 | Metrics, health checks, overload | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |
 

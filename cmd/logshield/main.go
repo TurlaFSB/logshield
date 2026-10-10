@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/TurlaFSB/logshield/internal/config"
 	"github.com/TurlaFSB/logshield/internal/proxy"
 	"github.com/TurlaFSB/logshield/internal/telemetry"
 	"github.com/TurlaFSB/logshield/internal/version"
@@ -49,22 +50,27 @@ const shutdownTimeout = 15 * time.Second
 func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready func(addr string)) int {
 	fs := flag.NewFlagSet("logshield", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	d := config.Defaults()
 	var (
 		showVersion = fs.Bool("version", false, "print version information and exit")
-		listen      = fs.String("listen", "127.0.0.1:8080", "address to listen on")
+		configPath  = fs.String("config", "", "JSON configuration file (also $"+config.EnvConfigFile+"); flags and $LOGSHIELD_* override it")
+		checkConfig = fs.Bool("check-config", false, "validate the configuration, print it, and exit")
+		listen      = fs.String("listen", d.Listen, "address to listen on")
 		upstream    = fs.String("upstream", "", "protected server as scheme://host[:port] (required)")
-		mode        = fs.String("mode", "monitor", "monitor (record only) or block")
-		strict      = fs.Bool("block-suspicious", false, "in block mode, also block suspicious requests")
-		onError     = fs.String("on-error", "closed", "when inspection itself fails in block mode: closed or open")
-		maxBody     = fs.Int64("max-body", 1<<20, "largest request body inspected, in bytes")
-		forwarded   = fs.String("forwarded-for", "replace", "X-Forwarded-For handling: replace, append or off")
-		rewriteHost = fs.Bool("rewrite-host", false, "send the upstream's host in the Host header")
-		adminListen = fs.String("admin-listen", "", "address for /metrics, /healthz and /readyz (disabled when empty; keep it off public interfaces)")
-		maxInFlight = fs.Int("max-in-flight", 0, "most requests handled at once, then 503 (0 = 1024, -1 = no limit)")
-		logLevel    = fs.String("log-level", "info", "debug, info, warn or error")
+		mode        = fs.String("mode", d.Mode, "monitor (record only) or block")
+		strict      = fs.Bool("block-suspicious", d.BlockSuspicious, "in block mode, also block suspicious requests")
+		onError     = fs.String("on-error", d.OnError, "when inspection itself fails in block mode: closed or open")
+		maxBody     = fs.Int64("max-body", d.MaxBodyBytes, "largest request body inspected, in bytes")
+		forwarded   = fs.String("forwarded-for", d.ForwardedFor, "X-Forwarded-For handling: replace, append or off")
+		rewriteHost = fs.Bool("rewrite-host", d.RewriteHost, "send the upstream's host in the Host header")
+		adminListen = fs.String("admin-listen", d.AdminListen, "address for /metrics, /healthz and /readyz (disabled when empty; keep it off public interfaces)")
+		maxInFlight = fs.Int("max-in-flight", d.MaxInFlight, "most requests handled at once, then 503 (-1 = no limit)")
+		logLevel    = fs.String("log-level", d.LogLevel, "debug, info, warn or error")
+		disable     listFlag
 		skip        listFlag
 	)
 	fs.Var(&skip, "skip-body-type", "media type or prefix such as image/ whose body is streamed uninspected (repeatable)")
+	fs.Var(&disable, "disable-rule", "rule ID to switch off, for tuning false positives (repeatable)")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -74,39 +80,73 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		return 0
 	}
 
-	var level slog.Level
-	if err := level.UnmarshalText([]byte(*logLevel)); err != nil {
-		_, _ = fmt.Fprintf(stderr, "logshield: invalid -log-level %q\n", *logLevel)
-		return 2
+	// Precedence, lowest to highest: built-in defaults, file, environment, flags.
+	settings := config.Defaults()
+	path := *configPath
+	if path == "" {
+		path = os.Getenv(config.EnvConfigFile)
 	}
-	logger := slog.New(slog.NewJSONHandler(stderr, &slog.HandlerOptions{Level: level}))
-
-	if *upstream == "" {
-		_, _ = fmt.Fprintln(stderr, "logshield: -upstream is required")
-		return 2
+	if path != "" {
+		if err := settings.LoadFile(path); err != nil {
+			_, _ = fmt.Fprintf(stderr, "logshield: configuration file: %v\n", err)
+			return 2
+		}
 	}
-	target, err := url.Parse(*upstream)
+	unknown, err := settings.ApplyEnv(os.Environ())
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "logshield: invalid -upstream: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "logshield: environment: %v\n", err)
 		return 2
 	}
-	cfg := proxy.Config{
-		Upstream:        target,
-		Mode:            proxy.Mode(*mode),
-		BlockSuspicious: *strict,
-		OnError:         proxy.FailPolicy(*onError),
-		MaxBodyBytes:    *maxBody,
-		SkipBodyTypes:   skip,
-		ForwardedFor:    proxy.ForwardedFor(*forwarded),
-		RewriteHost:     *rewriteHost,
-		MaxInFlight:     *maxInFlight,
-		Logger:          logger,
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "listen":
+			settings.Listen = *listen
+		case "upstream":
+			settings.Upstream = *upstream
+		case "mode":
+			settings.Mode = *mode
+		case "block-suspicious":
+			settings.BlockSuspicious = *strict
+		case "on-error":
+			settings.OnError = *onError
+		case "max-body":
+			settings.MaxBodyBytes = *maxBody
+		case "forwarded-for":
+			settings.ForwardedFor = *forwarded
+		case "rewrite-host":
+			settings.RewriteHost = *rewriteHost
+		case "admin-listen":
+			settings.AdminListen = *adminListen
+		case "max-in-flight":
+			settings.MaxInFlight = *maxInFlight
+		case "log-level":
+			settings.LogLevel = *logLevel
+		case "skip-body-type":
+			settings.SkipBodyTypes = skip
+		case "disable-rule":
+			settings.DisabledRules = disable
+		}
+	})
+
+	logger := slog.New(slog.NewJSONHandler(stderr, &slog.HandlerOptions{Level: settings.Level()}))
+	for _, name := range unknown {
+		logger.Warn("ignoring unrecognized environment variable (typo?)", "name", name)
 	}
+	cfg, err := settings.ProxyConfig(logger)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "logshield: invalid configuration:\n%v\n", err)
+		return 2
+	}
+	if *checkConfig {
+		_, _ = fmt.Fprintf(stdout, "configuration OK\n%s\n", settings.Redacted())
+		return 0
+	}
+	target := cfg.Upstream
 	var (
 		metrics *telemetry.Metrics
 		admin   *telemetry.Admin
 	)
-	if *adminListen != "" {
+	if settings.AdminListen != "" {
 		metrics = telemetry.New(version.String())
 		cfg.Observer = metrics
 	}
@@ -117,7 +157,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	}
 
 	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", *listen)
+	ln, err := lc.Listen(ctx, "tcp", settings.Listen)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "logshield: %v\n", err)
 		return 1
@@ -126,20 +166,20 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	if metrics != nil {
 		metrics.SetInFlight(p.InFlight)
 		admin = telemetry.NewAdmin(telemetry.AdminConfig{Metrics: metrics, Upstream: upstreamAddr(target)})
-		if adminLn, err = lc.Listen(ctx, "tcp", *adminListen); err != nil {
+		if adminLn, err = lc.Listen(ctx, "tcp", settings.AdminListen); err != nil {
 			_ = ln.Close()
 			_, _ = fmt.Fprintf(stderr, "logshield: admin listener: %v\n", err)
 			return 1
 		}
 	}
 	ln = p.WrapListener(ln) // also observe requests the HTTP server refuses before the proxy sees them
-	srv := proxy.NewServer(*listen, p, proxy.ServerConfig{}, logger)
+	srv := proxy.NewServer(settings.Listen, p, proxy.ServerConfig{}, logger)
 
 	// Credentials in the upstream URL are rejected by validation, so the address
 	// is safe to log.
 	logger.Info("listening", "addr", ln.Addr().String(), "upstream", target.Redacted(),
-		"mode", *mode, "version", version.String())
-	if *mode == string(proxy.ModeMonitor) {
+		"mode", settings.Mode, "version", version.String())
+	if settings.Mode == string(proxy.ModeMonitor) {
 		logger.Info("monitor mode: requests are recorded but never blocked; use -mode block to enforce")
 	}
 	if ready != nil {
@@ -150,7 +190,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	go func() { errc <- srv.Serve(ln) }()
 	var adminSrv *http.Server
 	if adminLn != nil {
-		adminSrv = telemetry.NewAdminServer(*adminListen, admin.Handler())
+		adminSrv = telemetry.NewAdminServer(settings.AdminListen, admin.Handler())
 		logger.Info("admin endpoints", "addr", adminLn.Addr().String(), "paths", "/metrics /healthz /readyz")
 		go func() { errc <- adminSrv.Serve(adminLn) }()
 	}

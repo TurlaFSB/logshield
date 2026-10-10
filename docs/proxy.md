@@ -24,6 +24,7 @@ logshield -upstream http://10.0.0.5:8080 -listen 127.0.0.1:8080 -mode block
 | `-admin-listen` | off | `/metrics`, `/healthz`, `/readyz` listener; see [observability](observability.md). |
 | `-max-in-flight` | 1024 | Concurrency limit; excess requests get `503`. `-1` disables. |
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |
+| `-config`, `-check-config`, `-disable-rule` | | File-based configuration, validation, rule tuning: see [configuration](configuration.md). |
 
 **Monitor is the default** so a first deployment cannot break traffic. The
 process says so at startup. Use `-mode block` once the logs look right.

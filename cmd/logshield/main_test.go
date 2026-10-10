@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -36,10 +38,10 @@ func TestRunUsageErrors(t *testing.T) {
 		wantStderr string
 	}{
 		{name: "version flag", args: []string{"-version"}, wantCode: 0, wantStdout: "logshield "},
-		{name: "upstream is required", args: nil, wantCode: 2, wantStderr: "-upstream is required"},
+		{name: "upstream is required", args: nil, wantCode: 2, wantStderr: "upstream is required"},
 		{name: "unknown flag", args: []string{"-nope"}, wantCode: 2, wantStderr: "flag provided but not defined"},
-		{name: "bad log level", args: []string{"-log-level", "loud", "-upstream", "http://x"}, wantCode: 2, wantStderr: "invalid -log-level"},
-		{name: "unparseable upstream", args: []string{"-upstream", "http://[::1"}, wantCode: 2, wantStderr: "invalid -upstream"},
+		{name: "bad log level", args: []string{"-log-level", "loud", "-upstream", "http://x"}, wantCode: 2, wantStderr: "unknown log level"},
+		{name: "unparseable upstream", args: []string{"-upstream", "http://[::1"}, wantCode: 2, wantStderr: "not a valid URL"},
 		{name: "invalid configuration reports every problem", args: []string{"-upstream", "ftp://x/p", "-mode", "audit", "-forwarded-for", "x"}, wantCode: 2, wantStderr: "unknown mode"},
 		{name: "listen failure", args: []string{"-upstream", "http://127.0.0.1:1", "-listen", "256.0.0.1:99999"}, wantCode: 1, wantStderr: "logshield:"},
 	}
@@ -242,5 +244,89 @@ func TestUpstreamAddr(t *testing.T) {
 		if got := upstreamAddr(u); got != want {
 			t.Errorf("%s -> %s, want %s", in, got, want)
 		}
+	}
+}
+
+func runOnce(t *testing.T, args ...string) (int, string, string) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	code := run(context.Background(), args, &out, &errb, nil)
+	return code, out.String(), errb.String()
+}
+
+func writeConfig(t *testing.T, content string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "c.json")
+	if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// File < environment < flags, and -check-config shows the result.
+func TestConfigurationPrecedence(t *testing.T) {
+	file := writeConfig(t, `{"upstream":"http://file:1","mode":"block","max_in_flight":5,"listen":"127.0.0.1:1111"}`)
+
+	code, out, errs := runOnce(t, "-config", file, "-check-config")
+	if code != 0 || !strings.Contains(out, `"mode": "block"`) || !strings.Contains(out, `"upstream": "http://file:1"`) {
+		t.Fatalf("file only: %d %s %s", code, out, errs)
+	}
+
+	t.Setenv("LOGSHIELD_MODE", "monitor")
+	t.Setenv("LOGSHIELD_MAX_IN_FLIGHT", "7")
+	code, out, _ = runOnce(t, "-config", file, "-check-config")
+	if code != 0 || !strings.Contains(out, `"mode": "monitor"`) || !strings.Contains(out, `"max_in_flight": 7`) {
+		t.Errorf("environment must override the file: %d %s", code, out)
+	}
+
+	code, out, _ = runOnce(t, "-config", file, "-mode", "block", "-max-in-flight", "9", "-check-config")
+	if code != 0 || !strings.Contains(out, `"mode": "block"`) || !strings.Contains(out, `"max_in_flight": 9`) || !strings.Contains(out, "127.0.0.1:1111") {
+		t.Errorf("flags must override the environment and leave the rest alone: %d %s", code, out)
+	}
+
+	t.Setenv("LOGSHIELD_CONFIG", file)
+	if code, out, _ = runOnce(t, "-check-config"); code != 0 || !strings.Contains(out, "http://file:1") {
+		t.Errorf("$LOGSHIELD_CONFIG not used: %d %s", code, out)
+	}
+}
+
+func TestConfigurationErrors(t *testing.T) {
+	for name, tc := range map[string]struct {
+		args []string
+		env  map[string]string
+		want string
+	}{
+		"missing file":         {args: []string{"-config", "/nonexistent/x.json"}, want: "configuration file"},
+		"unknown key":          {args: []string{"-config", writeConfig(t, `{"upstrem":"x"}`)}, want: "unknown field"},
+		"bad environment":      {args: []string{"-upstream", "http://x"}, env: map[string]string{"LOGSHIELD_MAX_IN_FLIGHT": "lots"}, want: "LOGSHIELD_MAX_IN_FLIGHT"},
+		"unknown rule":         {args: []string{"-upstream", "http://x", "-disable-rule", "LSH-9999"}, want: "LSH-9999"},
+		"mandatory rule":       {args: []string{"-upstream", "http://x", "-disable-rule", "LSH-3001"}, want: "mandatory"},
+		"credentials in url":   {args: []string{"-upstream", "http://u:pw@x"}, want: "credentials"},
+		"invalid check-config": {args: []string{"-check-config"}, want: "upstream is required"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			code, _, errs := runOnce(t, tc.args...)
+			if code != 2 || !strings.Contains(errs, tc.want) || strings.Contains(errs, "pw@") {
+				t.Errorf("exit %d, stderr %q, want %q", code, errs, tc.want)
+			}
+		})
+	}
+}
+
+func TestUnknownEnvironmentVariableIsWarnedAbout(t *testing.T) {
+	t.Setenv("LOGSHIELD_UPSTREM", "x")
+	code, _, errs := runOnce(t, "-upstream", "http://x", "-check-config")
+	if code != 0 || !strings.Contains(errs, "LOGSHIELD_UPSTREM") {
+		t.Errorf("exit %d, stderr %q", code, errs)
+	}
+}
+
+func TestRepeatableFlagsReachTheProxy(t *testing.T) {
+	code, out, errs := runOnce(t, "-upstream", "http://x", "-skip-body-type", "image/", "-skip-body-type", "video/", "-disable-rule", "LSH-2001", "-check-config")
+	if code != 0 || !strings.Contains(out, `"image/"`) || !strings.Contains(out, `"video/"`) || !strings.Contains(out, `"LSH-2001"`) {
+		t.Errorf("exit %d\n%s\n%s", code, out, errs)
 	}
 }
