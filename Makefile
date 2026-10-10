@@ -11,10 +11,12 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
 # Minimum total statement coverage, in percent. This is a ratchet: it only goes up.
-COVER_MIN ?= 90
+COVER_MIN ?= 97
+# The detection engine is the security boundary and is held to a higher floor.
+ENGINE_COVER_MIN ?= 98
 GOVULNCHECK_VERSION := v1.1.4
 FUZZTIME ?= 30s
-FUZZ_TARGETS := FuzzDecode FuzzResolve FuzzInspect
+FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus
 
 .PHONY: help build test race cover cover-check fuzz bench eval fmt vet lint vuln check
 
@@ -33,16 +35,21 @@ race: ## Run unit tests with the race detector
 cover: ## Run tests and write coverage.out
 	go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
-cover-check: cover ## Fail if total coverage is below COVER_MIN
+cover-check: cover ## Fail if total or engine coverage is below its floor
 	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$$3); print $$3}'); \
 	echo "total coverage: $$total% (floor: $(COVER_MIN)%)"; \
 	awk -v t="$$total" -v m="$(COVER_MIN)" 'BEGIN { exit (t+0 >= m+0) ? 0 : 1 }' || \
 	  { echo "coverage $$total% is below the $(COVER_MIN)% floor"; exit 1; }
+	@eng=$$(awk -F'[ :]' '/internal\/engine\// && !/mode:/ { n=$$(NF-1); c=$$NF; t+=n; if (c>0) h+=n } END { printf "%.1f", (t ? 100*h/t : 0) }' coverage.out); \
+	echo "engine coverage: $$eng% (floor: $(ENGINE_COVER_MIN)%)"; \
+	awk -v t="$$eng" -v m="$(ENGINE_COVER_MIN)" 'BEGIN { exit (t+0 >= m+0) ? 0 : 1 }' || \
+	  { echo "engine coverage $$eng% is below the $(ENGINE_COVER_MIN)% floor"; exit 1; }
 
 fuzz: ## Fuzz each target for FUZZTIME (default 30s)
-	@for t in $(FUZZ_TARGETS); do \
-	  echo "fuzzing $$t for $(FUZZTIME)"; \
-	  go test ./internal/engine -run '^$$' -fuzz="^$$t$$" -fuzztime=$(FUZZTIME) || exit 1; \
+	@for spec in $(FUZZ_TARGETS); do \
+	  pkg=$${spec%%:*}; t=$${spec#*:}; \
+	  echo "fuzzing $$t ($$pkg) for $(FUZZTIME)"; \
+	  go test ./internal/$$pkg -run '^$$' -fuzz="^$$t$$" -fuzztime=$(FUZZTIME) || exit 1; \
 	done
 
 bench: ## Run benchmarks
