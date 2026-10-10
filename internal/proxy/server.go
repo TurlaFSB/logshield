@@ -41,7 +41,7 @@ func NewServer(addr string, handler http.Handler, c ServerConfig, logger *slog.L
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &http.Server{
+	srv := &http.Server{
 		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: c.ReadHeaderTimeout,
@@ -52,5 +52,8 @@ func NewServer(addr string, handler http.Handler, c ServerConfig, logger *slog.L
 		// The server's own error lines can quote request data, so they go through
 		// the same neutralizing handler as everything else.
 		ErrorLog: slog.NewLogLogger(newSafeLogger(logger).Handler(), slog.LevelWarn),
+		// HTTP/2 (used when TLS is on): bound concurrent streams per connection.
+		HTTP2: &http.HTTP2Config{MaxConcurrentStreams: 100},
 	}
+	return srv
 }

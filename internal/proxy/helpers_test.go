@@ -278,3 +278,7 @@ func rawGET(target string, headers ...string) string {
 	b.WriteString("Connection: close\r\n\r\n")
 	return b.String()
 }
+
+func newTestLogger(w io.Writer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: slog.LevelDebug}))
+}

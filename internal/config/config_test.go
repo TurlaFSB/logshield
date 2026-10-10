@@ -96,7 +96,7 @@ func TestApplyEnv(t *testing.T) {
 	want := Settings{
 		Listen: "0.0.0.0:80", Upstream: "http://backend:8080", Mode: "block", BlockSuspicious: true, OnError: "open",
 		MaxBodyBytes: 2048, SkipBodyTypes: []string{"image/", "video/"}, ForwardedFor: "append", RewriteHost: true,
-		AdminListen: "127.0.0.1:9090", MaxInFlight: -1, LogLevel: "debug", DisabledRules: []string{"LSH-2001", "LSH-2002"},
+		AdminListen: "127.0.0.1:9090", MaxInFlight: -1, LogLevel: "debug", DisabledRules: []string{"LSH-2001", "LSH-2002"}, TLSMinVersion: "1.2",
 	}
 	if strings.Join(s.SkipBodyTypes, "|") != "image/|video/" || strings.Join(s.DisabledRules, "|") != "LSH-2001|LSH-2002" {
 		t.Errorf("lists: %+v", s)
@@ -162,5 +162,50 @@ func TestLevel(t *testing.T) {
 	s.LogLevel = "warn"
 	if s.Level() != slog.LevelWarn {
 		t.Errorf("level = %v", s.Level())
+	}
+}
+
+func TestTLSSettings(t *testing.T) {
+	s := Defaults()
+	s.Upstream = "http://x:1"
+	s.TLSCertFile = "only-cert.pem"
+	if _, err := s.ProxyConfig(nil); err == nil || !strings.Contains(err.Error(), "together") {
+		t.Errorf("cert without key: %v", err)
+	}
+	s.TLSKeyFile, s.TLSMinVersion = "k.pem", "1.0"
+	if _, err := s.ProxyConfig(nil); err == nil || !strings.Contains(err.Error(), "unsupported TLS version") {
+		t.Errorf("TLS 1.0: %v", err)
+	}
+	s.TLSMinVersion = "1.3"
+	if _, err := s.ProxyConfig(nil); err != nil {
+		t.Errorf("valid TLS settings: %v", err)
+	}
+	c, err := s.TLSConfig()
+	if err != nil || c.CertFile != "only-cert.pem" || c.MinVersion == 0 {
+		t.Errorf("TLSConfig: %+v %v", c, err)
+	}
+}
+
+func TestUpstreamTLSSettings(t *testing.T) {
+	s := Defaults()
+	s.Upstream = "https://x:1"
+	s.UpstreamCAFile = filepath.Join(t.TempDir(), "missing.pem")
+	if _, err := s.ProxyConfig(nil); err == nil || !strings.Contains(err.Error(), "upstream CA") {
+		t.Errorf("missing CA file: %v", err)
+	}
+	s.UpstreamCAFile, s.UpstreamServerName = "", "backend.internal"
+	cfg, err := s.ProxyConfig(nil)
+	if err != nil || cfg.Transport == nil {
+		t.Errorf("server name only: %v %v", cfg.Transport, err)
+	}
+}
+
+func TestTLSEnvironment(t *testing.T) {
+	s := Defaults()
+	if _, err := s.ApplyEnv([]string{"LOGSHIELD_TLS_CERT_FILE=c", "LOGSHIELD_TLS_KEY_FILE=k", "LOGSHIELD_TLS_MIN_VERSION=1.3", "LOGSHIELD_UPSTREAM_CA_FILE=ca", "LOGSHIELD_UPSTREAM_SERVER_NAME=n"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.TLSCertFile != "c" || s.TLSKeyFile != "k" || s.TLSMinVersion != "1.3" || s.UpstreamCAFile != "ca" || s.UpstreamServerName != "n" {
+		t.Errorf("%+v", s)
 	}
 }

@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -66,6 +67,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		adminListen = fs.String("admin-listen", d.AdminListen, "address for /metrics, /healthz and /readyz (disabled when empty; keep it off public interfaces)")
 		maxInFlight = fs.Int("max-in-flight", d.MaxInFlight, "most requests handled at once, then 503 (-1 = no limit)")
 		logLevel    = fs.String("log-level", d.LogLevel, "debug, info, warn or error")
+		tlsCert     = fs.String("tls-cert", d.TLSCertFile, "PEM certificate chain: serve HTTPS (and HTTP/2) to clients; reloaded when the file changes")
+		tlsKey      = fs.String("tls-key", d.TLSKeyFile, "PEM private key for -tls-cert")
+		tlsMin      = fs.String("tls-min-version", d.TLSMinVersion, "lowest TLS version accepted from clients: 1.2 or 1.3")
+		upstreamCA  = fs.String("upstream-ca", d.UpstreamCAFile, "PEM CA bundle to verify an https upstream (instead of the system roots)")
+		upstreamSNI = fs.String("upstream-server-name", d.UpstreamServerName, "name to verify in the https upstream's certificate, for upstreams addressed by IP")
 		disable     listFlag
 		skip        listFlag
 	)
@@ -121,6 +127,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 			settings.MaxInFlight = *maxInFlight
 		case "log-level":
 			settings.LogLevel = *logLevel
+		case "tls-cert":
+			settings.TLSCertFile = *tlsCert
+		case "tls-key":
+			settings.TLSKeyFile = *tlsKey
+		case "tls-min-version":
+			settings.TLSMinVersion = *tlsMin
+		case "upstream-ca":
+			settings.UpstreamCAFile = *upstreamCA
+		case "upstream-server-name":
+			settings.UpstreamServerName = *upstreamSNI
 		case "skip-body-type":
 			settings.SkipBodyTypes = skip
 		case "disable-rule":
@@ -136,6 +152,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "logshield: invalid configuration:\n%v\n", err)
 		return 2
+	}
+	var tlsCfg *tls.Config
+	if settings.TLSCertFile != "" {
+		tc, _ := settings.TLSConfig() // validated by ProxyConfig
+		if tlsCfg, err = proxy.NewServerTLS(tc, logger); err != nil {
+			_, _ = fmt.Fprintf(stderr, "logshield: invalid configuration:\n%v\n", err)
+			return 2
+		}
 	}
 	if *checkConfig {
 		_, _ = fmt.Fprintf(stdout, "configuration OK\n%s\n", settings.Redacted())
@@ -172,13 +196,20 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 			return 1
 		}
 	}
-	ln = p.WrapListener(ln) // also observe requests the HTTP server refuses before the proxy sees them
 	srv := proxy.NewServer(settings.Listen, p, proxy.ServerConfig{}, logger)
+	if tlsCfg != nil {
+		// HTTP/2 needs the *tls.Conn the server sees, so the listener cannot also
+		// be wrapped to observe protocol errors (documented limitation).
+		srv.TLSConfig = tlsCfg
+		ln = tls.NewListener(ln, tlsCfg)
+	} else {
+		ln = p.WrapListener(ln) // also observe requests the HTTP server refuses before the proxy sees them
+	}
 
 	// Credentials in the upstream URL are rejected by validation, so the address
 	// is safe to log.
 	logger.Info("listening", "addr", ln.Addr().String(), "upstream", target.Redacted(),
-		"mode", settings.Mode, "version", version.String())
+		"mode", settings.Mode, "tls", tlsCfg != nil, "version", version.String())
 	if settings.Mode == string(proxy.ModeMonitor) {
 		logger.Info("monitor mode: requests are recorded but never blocked; use -mode block to enforce")
 	}

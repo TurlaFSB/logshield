@@ -12,6 +12,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   ambiguous requests, fail-closed/fail-open inspection errors, defanged
   structured logs, hardened server timeouts, graceful shutdown. See `docs/proxy.md`.
 - `engine.Config.Effective`.
+- TLS termination with HTTP/2 (`-tls-cert`, `-tls-key`, `-tls-min-version`), certificate hot-reload, and verified https upstreams with a private CA or server-name override. HTTP/2 differentials are covered by raw-frame tests (ADR 0005).
 - Configuration from a strict JSON file, `LOGSHIELD_*` environment variables and flags (`-config`, `-check-config`, `-disable-rule`); unknown keys and variables are reported. See `docs/configuration.md`.
 - Prometheus metrics, `/healthz` and `/readyz` on a separate admin listener (`-admin-listen`), stdlib only (ADR 0004); `-max-in-flight` overload shedding (`503` + `Retry-After`). See `docs/observability.md`.
 - `Proxy.WrapListener`: requests refused by Go's HTTP server before the handler runs are now logged and observed (`protocol-error`).

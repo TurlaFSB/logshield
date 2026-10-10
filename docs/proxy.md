@@ -64,6 +64,23 @@ the proxy generated (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`,
 `X-Request-Id`). Anything else is a bug and produces a 502, not a forward. Tests
 mutate requests at each stage to prove the guard trips.
 
+## TLS and HTTP/2
+
+With `-tls-cert` and `-tls-key` the proxy serves HTTPS (TLS 1.2+, `-tls-min-version
+1.3` to require 1.3), negotiating HTTP/2 or HTTP/1.1. HTTP/2 is terminated, not
+relayed: each stream becomes an ordinary request that is inspected, re-serialized
+and sent to the upstream over HTTP/1.1, so `:authority`, `cookie` crumbs, trailers
+and pseudo-headers cannot create a difference between what was inspected and what
+the backend receives. Details and the tested cases are in
+[ADR 0005](adr/0005-tls-termination-and-http2.md). Behavior worth knowing:
+
+- Trailers are never forwarded (gRPC is not supported behind the proxy).
+- `Transfer-Encoding`, CRLF in header values and a `Content-Length` that disagrees
+  with the data are refused by the HTTP/2 layer before the handler.
+- A `Host` header that differs from `:authority` is inspected like any other header.
+- Under TLS, requests the HTTP server refuses before the handler are refused but
+  not counted as `protocol-error` (see the ADR).
+
 ## Policies
 
 - **Mode**: `monitor` never blocks. `block` rejects `malicious`.
@@ -110,9 +127,8 @@ Step 3c.
   emits an event (`rejected`, reason `protocol-error`, with the status and client
   address) and a warning log line. This relies on the exact shape of those responses
   and is pinned by tests on every Go version CI covers. It works on plain-text
-  connections; Step 2b must keep the same coverage when TLS is added.
+  connections only: with TLS they are still refused but not counted (ADR 0005).
 - `TE: trailers` and similar end-to-end-looking headers are relayed by
   `httputil.ReverseProxy`; they are inspected like any other header.
 - WebSocket and other `Upgrade` traffic is not supported.
-- TLS termination (and with it HTTP/2), a config file and a health check are
-  planned for Step 2b; load and integration tests for Step 2c.
+- Load and latency measurement (the p99 target) are Step 2c.

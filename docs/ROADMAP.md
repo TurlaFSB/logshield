@@ -26,7 +26,7 @@ These are goals to be confirmed by measurement, not claims.
 ## Step 2: reverse proxy
 
 - [x] **2a. Proxy core**: size and time limits, fail-open / fail-closed, `monitor` and `block` modes, log output that defangs `${`; forward exactly the bytes that were inspected and reject ambiguous requests (parser differentials: `Content-Length` vs `Transfer-Encoding`, duplicate headers, obs-fold, invalid characters), per the [threat model](threat-model.md)
-- [ ] **2b. Observability**: Prometheus metrics (block rate, monitor-mode hits, latency histogram), config file, health check
+- [x] **2b. Observability and operations**: Prometheus metrics (block rate, monitor-mode hits, latency histogram), config file, health check
 - [ ] **2c. Proxy tests**: integration tests, load test, latency benchmark
 
 ## Step 3: lab, validation, release

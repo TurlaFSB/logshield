@@ -44,18 +44,28 @@ type Settings struct {
 	LogLevel        string   `json:"log_level"`
 	// DisabledRules switches off non-mandatory rules (for tuning false positives).
 	DisabledRules []string `json:"disabled_rules"`
+
+	// TLS termination for clients. Empty cert and key mean plain HTTP.
+	TLSCertFile   string `json:"tls_cert_file"`
+	TLSKeyFile    string `json:"tls_key_file"`
+	TLSMinVersion string `json:"tls_min_version"` // "1.2" (default) or "1.3"
+
+	// Verification of an https upstream. Verification is never disabled.
+	UpstreamCAFile     string `json:"upstream_ca_file"`
+	UpstreamServerName string `json:"upstream_server_name"`
 }
 
 // Defaults returns the built-in settings: loopback listener and monitor mode.
 func Defaults() Settings {
 	return Settings{
-		Listen:       "127.0.0.1:8080",
-		Mode:         string(proxy.ModeMonitor),
-		OnError:      string(proxy.FailClosed),
-		MaxBodyBytes: 1 << 20,
-		ForwardedFor: string(proxy.ForwardedForReplace),
-		MaxInFlight:  1024,
-		LogLevel:     "info",
+		Listen:        "127.0.0.1:8080",
+		Mode:          string(proxy.ModeMonitor),
+		OnError:       string(proxy.FailClosed),
+		MaxBodyBytes:  1 << 20,
+		ForwardedFor:  string(proxy.ForwardedForReplace),
+		MaxInFlight:   1024,
+		LogLevel:      "info",
+		TLSMinVersion: "1.2",
 	}
 }
 
@@ -154,6 +164,11 @@ var envVars = []envVar{
 	}},
 	{"LOG_LEVEL", str(func(s *Settings) *string { return &s.LogLevel })},
 	{"DISABLED_RULES", list(func(s *Settings) *[]string { return &s.DisabledRules })},
+	{"TLS_CERT_FILE", str(func(s *Settings) *string { return &s.TLSCertFile })},
+	{"TLS_KEY_FILE", str(func(s *Settings) *string { return &s.TLSKeyFile })},
+	{"TLS_MIN_VERSION", str(func(s *Settings) *string { return &s.TLSMinVersion })},
+	{"UPSTREAM_CA_FILE", str(func(s *Settings) *string { return &s.UpstreamCAFile })},
+	{"UPSTREAM_SERVER_NAME", str(func(s *Settings) *string { return &s.UpstreamServerName })},
 }
 
 // EnvConfigFile is the variable naming the configuration file. It is read by the
@@ -236,10 +251,28 @@ func (s Settings) ProxyConfig(logger *slog.Logger) (proxy.Config, error) {
 	if err := checked.Validate(); err != nil {
 		errs = append(errs, err)
 	}
+	if _, err := s.TLSConfig(); err != nil {
+		errs = append(errs, err)
+	}
+	if s.UpstreamCAFile != "" || s.UpstreamServerName != "" {
+		if tr, err := proxy.NewTransport(proxy.UpstreamTLS{CAFile: s.UpstreamCAFile, ServerName: s.UpstreamServerName}); err != nil {
+			errs = append(errs, err)
+		} else {
+			cfg.Transport = tr
+		}
+	}
 	if err := cfg.Engine.Validate(); err != nil {
 		errs = append(errs, err)
 	}
 	return cfg, errors.Join(errs...)
+}
+
+// TLSConfig returns the client-facing TLS settings, validated. Its CertFile is
+// empty when TLS is not configured.
+func (s Settings) TLSConfig() (proxy.TLSConfig, error) {
+	v, err := proxy.ParseTLSVersion(s.TLSMinVersion)
+	c := proxy.TLSConfig{CertFile: s.TLSCertFile, KeyFile: s.TLSKeyFile, MinVersion: v}
+	return c, errors.Join(err, c.Validate())
 }
 
 // Level returns the configured log level (valid once ProxyConfig succeeded).

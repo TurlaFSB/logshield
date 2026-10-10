@@ -29,6 +29,19 @@ It exits 0 if valid and 2 if not, which makes it usable as a CI or pre-deploy ch
 | `log_level` | `LOGSHIELD_LOG_LEVEL` | `-log-level` | `info` |
 | `disabled_rules` | `LOGSHIELD_DISABLED_RULES` (comma list) | `-disable-rule` (repeat) | none |
 
+| `tls_cert_file` | `LOGSHIELD_TLS_CERT_FILE` | `-tls-cert` | off (plain HTTP) |
+| `tls_key_file` | `LOGSHIELD_TLS_KEY_FILE` | `-tls-key` | |
+| `tls_min_version` | `LOGSHIELD_TLS_MIN_VERSION` | `-tls-min-version` | `1.2` |
+| `upstream_ca_file` | `LOGSHIELD_UPSTREAM_CA_FILE` | `-upstream-ca` | system roots |
+| `upstream_server_name` | `LOGSHIELD_UPSTREAM_SERVER_NAME` | `-upstream-server-name` | the upstream host |
+
+With a certificate and key set, clients are served HTTPS with HTTP/2 and HTTP/1.1
+([ADR 0005](adr/0005-tls-termination-and-http2.md)). The files are re-read when
+their modification time changes (checked every 10 seconds), so rotation needs no
+restart; a broken replacement keeps the working certificate and logs an error.
+The https upstream is always verified; use `upstream_ca_file` for a private CA and
+`upstream_server_name` when the upstream is addressed by IP.
+
 `disabled_rules` takes rule IDs from the [rule catalogue](engine/rules.md). An
 unknown ID is an error (a typo would otherwise leave the rule you meant to
 disable active), and the mandatory budget rules (`LSH-3001` to `LSH-3003`) cannot
