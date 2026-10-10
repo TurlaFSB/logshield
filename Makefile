@@ -16,7 +16,7 @@ GOVULNCHECK_VERSION := v1.1.4
 FUZZTIME ?= 30s
 FUZZ_TARGETS := FuzzDecode FuzzResolve FuzzInspect
 
-.PHONY: help build test race cover cover-check fuzz bench fmt vet lint vuln check
+.PHONY: help build test race cover cover-check fuzz bench eval fmt vet lint vuln check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -47,6 +47,9 @@ fuzz: ## Fuzz each target for FUZZTIME (default 30s)
 
 bench: ## Run benchmarks
 	go test ./internal/engine -run '^$$' -bench . -benchmem
+
+eval: ## Regenerate docs/eval/report.md from the corpora (fails if a target is missed)
+	go test ./internal/corpus -run TestEvaluationTargets -count=1 -update
 
 fmt: ## Format code
 	gofmt -s -w .
