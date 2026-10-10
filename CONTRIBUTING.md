@@ -23,6 +23,7 @@ make fuzz    # fuzz every target (FUZZTIME=30s by default; FUZZ_TARGETS=engine:F
 make bench   # benchmarks; mention results if you touch a hot path
 make eval    # regenerate docs/eval/report.md after engine or corpus changes
 make vuln    # govulncheck
+make integration  # proxy in front of real Node, Python and JDK backends
 ```
 
 Commits should be small and focused, with an imperative subject line

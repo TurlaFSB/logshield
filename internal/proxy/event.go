@@ -38,6 +38,9 @@ type Event struct {
 	Exhausted  engine.Budget
 	// Reason is a short stable code for rejections and errors.
 	Reason string
+	// Remote is the client address; set for requests refused by the HTTP server
+	// before the proxy saw them (Reason "protocol-error").
+	Remote string
 	// FailedOpen is true when an inspection error was overridden by FailOpen.
 	FailedOpen      bool
 	BodyBytes       int

@@ -12,6 +12,8 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   ambiguous requests, fail-closed/fail-open inspection errors, defanged
   structured logs, hardened server timeouts, graceful shutdown. See `docs/proxy.md`.
 - `engine.Config.Effective`.
+- `Proxy.WrapListener`: requests refused by Go's HTTP server before the handler runs are now logged and observed (`protocol-error`).
+- `make integration` and a CI job: the proxy in front of real Node.js, Python and JDK backends (smuggling, re-framing, pipelining, verbatim targets, blocked attacks never delivered).
 - Proxy fuzz target `FuzzNothingMaliciousLeaves`; `CODE_OF_CONDUCT.md`, `SUPPORT.md`; README rewritten.
 
 ### Fixed

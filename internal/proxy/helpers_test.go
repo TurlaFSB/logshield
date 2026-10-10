@@ -156,7 +156,9 @@ func newHarness(t *testing.T, mutate func(*Config)) *harness {
 		return real(r, c)
 	}
 	h.proxy = p
-	h.server = httptest.NewServer(p)
+	h.server = httptest.NewUnstartedServer(p)
+	h.server.Listener = p.WrapListener(h.server.Listener)
+	h.server.Start()
 	t.Cleanup(h.server.Close)
 	return h
 }
@@ -177,6 +179,12 @@ func (h *harness) eventCount() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return len(h.events)
+}
+
+func (h *harness) allEvents() []Event {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]Event(nil), h.events...)
 }
 
 func (h *harness) inspected() []engine.Request {

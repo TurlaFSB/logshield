@@ -18,7 +18,7 @@ GOVULNCHECK_VERSION := v1.8.0
 FUZZTIME ?= 30s
 FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus proxy:FuzzNothingMaliciousLeaves
 
-.PHONY: help build test race cover cover-check fuzz bench eval fmt vet lint vuln check
+.PHONY: help build test race cover cover-check fuzz bench eval integration fmt vet lint vuln check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -69,5 +69,8 @@ lint: ## Run golangci-lint
 
 vuln: ## Scan dependencies and stdlib for known vulnerabilities
 	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
+
+integration: ## Run the proxy in front of real Node, Python and JDK backends (REQUIRE_BACKENDS=1 to fail if one is missing)
+	go test -tags integration -race -count=1 -run TestProxyInFrontOfRealBackends ./internal/proxy
 
 check: vet lint cover-check ## Everything CI runs, minus govulncheck

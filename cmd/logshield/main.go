@@ -110,6 +110,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		_, _ = fmt.Fprintf(stderr, "logshield: %v\n", err)
 		return 1
 	}
+	ln = p.WrapListener(ln) // also observe requests the HTTP server refuses before the proxy sees them
 	srv := proxy.NewServer(*listen, p, proxy.ServerConfig{}, logger)
 
 	// Credentials in the upstream URL are rejected by validation, so the address

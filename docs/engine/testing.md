@@ -8,6 +8,7 @@ angles. Each catches a different class of mistake.
 | Table tests | Specific behaviors, edge cases and error paths of the decoder, resolver, rules and request model | `internal/engine/*_test.go` |
 | Placement matrix | 11 payload styles in 16 request locations are all caught | `inspect_test.go` |
 | Property tests | Invariants hold over thousands of generated inputs: any obfuscation of the lookup is caught, any chain of up to three encodings is caught, embedding in arbitrary text keeps detection, adding data never lowers a verdict, plain text never produces findings, `Defang` is safe and reversible, `Decode` is deterministic and bounded | `property_test.go` |
+| Integration | The proxy in front of Node.js, Python and the JDK: nothing smuggled, re-framed bodies, verbatim targets, attacks never delivered | `make integration` (`internal/proxy/integration_test.go`) |
 | Fuzzing | No panic, hang or unbounded work on arbitrary bytes; evidence never contains `${`; budget exhaustion is always malicious | `FuzzDecode`, `FuzzResolve`, `FuzzInspect`, `FuzzMutatedCorpus` (seeded from every corpus request), and `proxy.FuzzNothingMaliciousLeaves` (drives the real handler and re-inspects whatever is forwarded) |
 | Corpora | Measured miss rate on 165 attack entries with provenance, and false-positive rate on 100,000+ benign requests | `corpus/`, [evaluation report](../eval/report.md) |
 | Concurrency | `Inspect` is safe from many goroutines | `hardening_test.go` under `-race` |

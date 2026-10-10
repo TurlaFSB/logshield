@@ -95,6 +95,8 @@ The proxy removes framing differentials toward the backend by re-serializing
 every request (single `Content-Length`, no `Transfer-Encoding`, no trailers),
 sends the request target verbatim, rejects `CONNECT`, `Upgrade`, non-origin-form
 targets, `//` prefixes and `#`, and verifies at the last hop that what leaves
-equals what was inspected. Remaining: requests rejected by Go's own parser are
-unobserved, and unsupported protocols (WebSocket) are refused. Details in
+equals what was inspected. Requests rejected by Go's own parser are never forwarded and are logged and
+counted as `protocol-error`. Verified against Node.js, Python and JDK backends
+(`make integration`). Remaining: unsupported protocols (WebSocket) are refused,
+and HTTP/2 will need its own differential review when TLS is added. Details in
 [proxy](proxy.md).

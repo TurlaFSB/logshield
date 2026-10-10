@@ -86,13 +86,30 @@ environment proxy variables ignored for the upstream, response compression
 disabled so bodies are relayed as-is, graceful shutdown on `SIGINT`/`SIGTERM`
 (15 s).
 
+## Tested against real servers
+
+`make integration` runs the proxy in front of Node.js (llhttp), Python's
+`http.server` (which does not understand chunked bodies, a useful differential),
+and the JDK's HTTP server, and checks what each backend actually parsed:
+verbatim targets, a request smuggled inside a body staying a body, chunked bodies
+re-framed with exactly one `Content-Length`, pipelined requests staying separate,
+headers unfolded, malformed requests never delivered, and blocked attacks never
+reaching the backend (the backend's request counter proves it). CI runs it with
+`REQUIRE_BACKENDS=1`. Differential testing against a *vulnerable Log4j* is still
+Step 3c.
+
 ## Known limitations
 
-- Requests Go's server rejects as malformed (bad framing, invalid header bytes)
-  are refused with a 400 before our handler runs, so they are safe but not
-  observed or counted. A TCP-level front is out of scope.
+- Requests Go's server rejects as malformed (bad framing, invalid header bytes,
+  oversize headers, unsupported versions) never reach the handler. They are safe
+  (they are never forwarded) and are still observed: the binary wraps its listener
+  with `Proxy.WrapListener`, which recognizes the server's own error responses and
+  emits an event (`rejected`, reason `protocol-error`, with the status and client
+  address) and a warning log line. This relies on the exact shape of those responses
+  and is pinned by tests on every Go version CI covers. It works on plain-text
+  connections; Step 2b must keep the same coverage when TLS is added.
 - `TE: trailers` and similar end-to-end-looking headers are relayed by
   `httputil.ReverseProxy`; they are inspected like any other header.
 - WebSocket and other `Upgrade` traffic is not supported.
-- TLS termination, a metrics endpoint, a config file and a health check are
+- TLS termination (and with it HTTP/2), a metrics endpoint, a config file and a health check are
   planned for Step 2b; load and integration tests for Step 2c.

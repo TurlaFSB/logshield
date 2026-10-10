@@ -146,7 +146,8 @@ Rules are stable IDs (`LSH-1001` to `LSH-3003`) mapped to CVEs; see
 | Test coverage | at least 97% total, 98% engine | 99.1% total, 99.5% engine |
 
 Plus property tests, fuzzing (every PR, plus a weekly long run), race-detector
-tests, and a hostile-request suite for the proxy. Full report:
+tests, a hostile-request suite for the proxy, and integration tests with the proxy
+in front of real Node.js, Python and JDK servers. Full report:
 [docs/eval/report.md](docs/eval/report.md); methodology:
 [docs/engine/testing.md](docs/engine/testing.md); latency:
 [docs/performance.md](docs/performance.md).
@@ -186,6 +187,7 @@ Requires Go 1.24 or newer.
 make build        # ./bin/logshield
 make check        # vet, lint, tests with race detector, coverage floors
 make fuzz         # fuzz each target (FUZZTIME=30s by default)
+make integration  # proxy in front of real Node, Python and JDK backends
 make bench        # benchmarks
 make eval         # regenerate the evaluation report
 make vuln         # govulncheck
