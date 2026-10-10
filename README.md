@@ -90,6 +90,8 @@ live `${`, so the log itself cannot re-trigger a vulnerable log pipeline):
 | `-skip-body-type` | none | Media type or prefix (`image/`) streamed uninspected. Repeatable. |
 | `-forwarded-for` | `replace` | `replace`, `append` or `off`. |
 | `-rewrite-host` | off | Send the upstream's host instead of the client's. |
+| `-admin-listen` | off | Address for `/metrics`, `/healthz`, `/readyz` ([observability](docs/observability.md)). |
+| `-max-in-flight` | 1024 | Concurrency limit; the next request gets `503` + `Retry-After`. `-1` disables. |
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |
 | `-version` | | Print version and exit. |
 
@@ -177,6 +179,7 @@ test against systems you do not own or have written authorization to test.
 | Evaluation report and performance | [docs/eval/report.md](docs/eval/report.md), [docs/performance.md](docs/performance.md) |
 | Corpora and provenance | [corpus/README.md](corpus/README.md) |
 | Architecture decisions | [docs/adr/](docs/adr/) |
+| Metrics, health checks, overload | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |
 
 ## Development

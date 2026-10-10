@@ -21,6 +21,8 @@ logshield -upstream http://10.0.0.5:8080 -listen 127.0.0.1:8080 -mode block
 | `-skip-body-type` | none | Media type whose body is streamed uninspected (repeatable). |
 | `-forwarded-for` | `replace` | `replace`, `append` or `off`. |
 | `-rewrite-host` | off | Send the upstream's host instead of the client's. |
+| `-admin-listen` | off | `/metrics`, `/healthz`, `/readyz` listener; see [observability](observability.md). |
+| `-max-in-flight` | 1024 | Concurrency limit; excess requests get `503`. `-1` disables. |
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |
 
 **Monitor is the default** so a first deployment cannot break traffic. The
@@ -111,5 +113,5 @@ Step 3c.
 - `TE: trailers` and similar end-to-end-looking headers are relayed by
   `httputil.ReverseProxy`; they are inspected like any other header.
 - WebSocket and other `Upgrade` traffic is not supported.
-- TLS termination (and with it HTTP/2), a metrics endpoint, a config file and a health check are
+- TLS termination (and with it HTTP/2), a config file and a health check are
   planned for Step 2b; load and integration tests for Step 2c.

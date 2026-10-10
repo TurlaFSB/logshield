@@ -50,6 +50,10 @@ type Event struct {
 	Duration        time.Duration
 }
 
+// ReasonInspectionError is the Event.Reason when the engine itself failed. It is
+// reported even when the request was forwarded (monitor mode, or fail-open).
+const ReasonInspectionError = reasonInspection
+
 // Observer receives one Event per request. Implementations must be safe for
 // concurrent use and must not block.
 type Observer interface {

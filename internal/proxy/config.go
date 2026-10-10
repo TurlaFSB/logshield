@@ -77,6 +77,13 @@ type Config struct {
 	// every body is inspected. Use it for large binary uploads.
 	SkipBodyTypes []string
 
+	// MaxInFlight bounds concurrently handled requests; one more is answered with
+	// 503 and Retry-After instead of queueing. Each in-flight request may hold up
+	// to MaxBodyBytes in memory, so this is also the memory bound. Long-lived
+	// streams (server-sent events) occupy a slot for their whole life. Default
+	// 1024; -1 disables the limit.
+	MaxInFlight int
+
 	// BlockStatus is the status sent for blocked requests. Default 403.
 	BlockStatus int
 	// ForwardedFor defaults to ForwardedForReplace.
@@ -95,6 +102,9 @@ type Config struct {
 	// Observer, if set, is called once per request with its outcome.
 	Observer Observer
 }
+
+// defaultMaxInFlight bounds memory to roughly this many default-size bodies.
+const defaultMaxInFlight = 1024
 
 const defaultMaxBody = 1 << 20
 
@@ -133,6 +143,9 @@ func (c Config) Validate() error {
 	default:
 		errs = append(errs, fmt.Errorf("unknown forwarded-for policy %q (want replace, append or off)", c.ForwardedFor))
 	}
+	if c.MaxInFlight < -1 {
+		errs = append(errs, fmt.Errorf("max in-flight must be positive, or -1 for no limit, got %d", c.MaxInFlight))
+	}
 	if c.MaxBodyBytes < 0 {
 		errs = append(errs, errors.New("max body bytes must not be negative"))
 	}
@@ -166,6 +179,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxBodyBytes == 0 {
 		c.MaxBodyBytes = defaultMaxBody
+	}
+	if c.MaxInFlight == 0 {
+		c.MaxInFlight = defaultMaxInFlight
 	}
 	if c.BlockStatus == 0 {
 		c.BlockStatus = http.StatusForbidden

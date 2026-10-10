@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/TurlaFSB/logshield/internal/engine"
@@ -23,6 +24,10 @@ type Proxy struct {
 	cfg Config
 	log *slog.Logger
 	rp  *httputil.ReverseProxy
+
+	// slots bounds concurrent requests; nil when the limit is disabled.
+	slots    chan struct{}
+	inflight atomic.Int64
 
 	// inspect is engine.Inspect; tests replace it to exercise error handling.
 	inspect func(engine.Request, engine.Config) engine.Verdict
@@ -45,6 +50,9 @@ func New(cfg Config) (*Proxy, error) {
 	}
 
 	p := &Proxy{cfg: cfg, log: newSafeLogger(logger), inspect: engine.Inspect}
+	if cfg.MaxInFlight > 0 {
+		p.slots = make(chan struct{}, cfg.MaxInFlight)
+	}
 	p.rp = &httputil.ReverseProxy{
 		Rewrite:      p.rewrite,
 		Transport:    guardTransport{next: transport},
@@ -98,6 +106,29 @@ func (s *statusRecorder) Write(b []byte) (int, error) {
 // Unwrap lets http.ResponseController reach Flush and friends.
 func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
 
+// InFlight reports how many requests are being handled right now.
+func (p *Proxy) InFlight() int { return int(p.inflight.Load()) }
+
+// acquire takes a slot without waiting; false means the proxy is at its limit.
+func (p *Proxy) acquire() bool {
+	if p.slots != nil {
+		select {
+		case p.slots <- struct{}{}:
+		default:
+			return false
+		}
+	}
+	p.inflight.Add(1)
+	return true
+}
+
+func (p *Proxy) release() {
+	p.inflight.Add(-1)
+	if p.slots != nil {
+		<-p.slots
+	}
+}
+
 // ServeHTTP inspects r and forwards, blocks or rejects it.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -115,6 +146,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		p.finish(r, ev, verdict)
 	}()
+
+	if !p.acquire() {
+		// Shed load instead of queueing: queued requests hold memory and the
+		// client is better served by an immediate, retryable answer.
+		ev.Action, ev.Reason = ActionRejected, reasonOverloaded
+		rec.Header().Set("Retry-After", "1")
+		p.respond(rec, ev.ID, http.StatusServiceUnavailable, "Server busy")
+		return
+	}
+	defer p.release()
 
 	if status, reason := checkRequest(r); status != 0 {
 		ev.Action, ev.Reason = ActionRejected, reason

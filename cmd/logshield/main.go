@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/TurlaFSB/logshield/internal/proxy"
+	"github.com/TurlaFSB/logshield/internal/telemetry"
 	"github.com/TurlaFSB/logshield/internal/version"
 )
 
@@ -58,6 +59,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		maxBody     = fs.Int64("max-body", 1<<20, "largest request body inspected, in bytes")
 		forwarded   = fs.String("forwarded-for", "replace", "X-Forwarded-For handling: replace, append or off")
 		rewriteHost = fs.Bool("rewrite-host", false, "send the upstream's host in the Host header")
+		adminListen = fs.String("admin-listen", "", "address for /metrics, /healthz and /readyz (disabled when empty; keep it off public interfaces)")
+		maxInFlight = fs.Int("max-in-flight", 0, "most requests handled at once, then 503 (0 = 1024, -1 = no limit)")
 		logLevel    = fs.String("log-level", "info", "debug, info, warn or error")
 		skip        listFlag
 	)
@@ -96,7 +99,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		SkipBodyTypes:   skip,
 		ForwardedFor:    proxy.ForwardedFor(*forwarded),
 		RewriteHost:     *rewriteHost,
+		MaxInFlight:     *maxInFlight,
 		Logger:          logger,
+	}
+	var (
+		metrics *telemetry.Metrics
+		admin   *telemetry.Admin
+	)
+	if *adminListen != "" {
+		metrics = telemetry.New(version.String())
+		cfg.Observer = metrics
 	}
 	p, err := proxy.New(cfg)
 	if err != nil {
@@ -109,6 +121,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "logshield: %v\n", err)
 		return 1
+	}
+	var adminLn net.Listener
+	if metrics != nil {
+		metrics.SetInFlight(p.InFlight)
+		admin = telemetry.NewAdmin(telemetry.AdminConfig{Metrics: metrics, Upstream: upstreamAddr(target)})
+		if adminLn, err = lc.Listen(ctx, "tcp", *adminListen); err != nil {
+			_ = ln.Close()
+			_, _ = fmt.Fprintf(stderr, "logshield: admin listener: %v\n", err)
+			return 1
+		}
 	}
 	ln = p.WrapListener(ln) // also observe requests the HTTP server refuses before the proxy sees them
 	srv := proxy.NewServer(*listen, p, proxy.ServerConfig{}, logger)
@@ -124,20 +146,43 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		ready(ln.Addr().String())
 	}
 
-	errc := make(chan error, 1)
+	errc := make(chan error, 2)
 	go func() { errc <- srv.Serve(ln) }()
+	var adminSrv *http.Server
+	if adminLn != nil {
+		adminSrv = telemetry.NewAdminServer(*adminListen, admin.Handler())
+		logger.Info("admin endpoints", "addr", adminLn.Addr().String(), "paths", "/metrics /healthz /readyz")
+		go func() { errc <- adminSrv.Serve(adminLn) }()
+	}
 	select {
 	case err := <-errc:
 		_, _ = fmt.Fprintf(stderr, "logshield: %v\n", err)
 		return 1
 	case <-ctx.Done():
 	}
+	if admin != nil {
+		admin.Drain() // readiness fails first, so load balancers stop sending traffic
+	}
 	sctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
+	if adminSrv != nil {
+		defer func() { _ = adminSrv.Shutdown(sctx) }()
+	}
 	if err := srv.Shutdown(sctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		_, _ = fmt.Fprintf(stderr, "logshield: shutdown: %v\n", err)
 		return 1
 	}
 	logger.Info("stopped")
 	return 0
+}
+
+// upstreamAddr returns host:port for a TCP readiness probe of the upstream.
+func upstreamAddr(u *url.URL) string {
+	if u.Port() != "" {
+		return u.Host
+	}
+	if u.Scheme == "https" {
+		return net.JoinHostPort(u.Hostname(), "443")
+	}
+	return net.JoinHostPort(u.Hostname(), "80")
 }

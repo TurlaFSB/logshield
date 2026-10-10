@@ -25,6 +25,7 @@ const (
 	reasonUpstream      = "upstream-unreachable"
 	reasonUpstreamSlow  = "upstream-timeout"
 	reasonGuard         = "guard-violation"
+	reasonOverloaded    = "overloaded"
 	reasonClientGone    = "client-canceled"
 	reasonBodySkipped   = "body-skipped"
 	reasonBodyTruncated = "body-truncated"
