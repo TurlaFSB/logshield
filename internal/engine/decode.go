@@ -33,15 +33,18 @@ type Budget int
 // Budget values. Any value other than BudgetNone means decoding was cut short
 // and callers MUST treat the input as hostile (fail-closed).
 const (
-	BudgetNone       Budget = iota // decoding completed within all limits
-	BudgetInputSize                // raw input larger than MaxInputBytes
-	BudgetDepth                    // still decodable after MaxDepth chained transforms
-	BudgetStages                   // more than MaxStages distinct decoded variants
-	BudgetStageBytes               // one decoded variant larger than MaxStageBytes
-	BudgetTotalBytes               // all variants together larger than MaxTotalBytes
-	BudgetNesting                  // lookups nested deeper than MaxNesting
-	BudgetLookups                  // more than MaxLookups lookups to evaluate
-	BudgetValueBytes               // a lookup name or value larger than MaxValueBytes
+	BudgetNone         Budget = iota // decoding completed within all limits
+	BudgetInputSize                  // raw input larger than MaxInputBytes
+	BudgetDepth                      // still decodable after MaxDepth chained transforms
+	BudgetStages                     // more than MaxStages distinct decoded variants
+	BudgetStageBytes                 // one decoded variant larger than MaxStageBytes
+	BudgetTotalBytes                 // all variants together larger than MaxTotalBytes
+	BudgetNesting                    // lookups nested deeper than MaxNesting
+	BudgetLookups                    // more than MaxLookups lookups to evaluate
+	BudgetValueBytes                 // a lookup name or value larger than MaxValueBytes
+	BudgetFields                     // a request with more than MaxFields inspectable fields
+	BudgetRequestBytes               // a request larger than MaxRequestBytes
+	BudgetWork                       // more than MaxWorkBytes of decoded text across the request
 )
 
 // String returns a stable, log-safe identifier for the budget.
@@ -65,6 +68,12 @@ func (b Budget) String() string {
 		return "lookups"
 	case BudgetValueBytes:
 		return "value-bytes"
+	case BudgetFields:
+		return "fields"
+	case BudgetRequestBytes:
+		return "request-bytes"
+	case BudgetWork:
+		return "work"
 	default:
 		return "unknown"
 	}

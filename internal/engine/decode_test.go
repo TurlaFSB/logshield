@@ -328,16 +328,19 @@ func TestLimitsDefaults(t *testing.T) {
 
 func TestBudgetString(t *testing.T) {
 	tests := map[Budget]string{
-		BudgetNone:       "none",
-		BudgetInputSize:  "input-size",
-		BudgetDepth:      "depth",
-		BudgetStages:     "stages",
-		BudgetStageBytes: "stage-bytes",
-		BudgetTotalBytes: "total-bytes",
-		BudgetNesting:    "nesting",
-		BudgetLookups:    "lookups",
-		BudgetValueBytes: "value-bytes",
-		Budget(99):       "unknown",
+		BudgetNone:         "none",
+		BudgetInputSize:    "input-size",
+		BudgetDepth:        "depth",
+		BudgetStages:       "stages",
+		BudgetStageBytes:   "stage-bytes",
+		BudgetTotalBytes:   "total-bytes",
+		BudgetNesting:      "nesting",
+		BudgetLookups:      "lookups",
+		BudgetValueBytes:   "value-bytes",
+		BudgetFields:       "fields",
+		BudgetRequestBytes: "request-bytes",
+		BudgetWork:         "work",
+		Budget(99):         "unknown",
 	}
 	for b, want := range tests {
 		if got := b.String(); got != want {

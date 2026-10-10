@@ -132,6 +132,16 @@ var envLike = map[string]bool{
 	"spring": true, "jvmrunargs": true,
 }
 
+// IsLookupPrefix reports whether prefix (already lower-cased) names a lookup that
+// Log4j 2.x evaluates. Prefixes outside this set are left unresolved by Log4j.
+func IsLookupPrefix(prefix string) bool {
+	switch prefix {
+	case "jndi", "lower", "upper", "date":
+		return true
+	}
+	return envLike[prefix]
+}
+
 const maxReportedKey = 256
 
 // Resolve analyzes text for Log4j lookups. See the package notes above.
