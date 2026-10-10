@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TurlaFSB/logshield/internal/proxy"
 )
@@ -96,7 +97,7 @@ func TestApplyEnv(t *testing.T) {
 	want := Settings{
 		Listen: "0.0.0.0:80", Upstream: "http://backend:8080", Mode: "block", BlockSuspicious: true, OnError: "open",
 		MaxBodyBytes: 2048, SkipBodyTypes: []string{"image/", "video/"}, ForwardedFor: "append", RewriteHost: true,
-		AdminListen: "127.0.0.1:9090", MaxInFlight: -1, LogLevel: "debug", DisabledRules: []string{"LSH-2001", "LSH-2002"}, TLSMinVersion: "1.2",
+		AdminListen: "127.0.0.1:9090", MaxInFlight: -1, LogLevel: "debug", DisabledRules: []string{"LSH-2001", "LSH-2002"}, TLSMinVersion: "1.2", ReadTimeout: "30s", ClientWriteTimeout: "60s", DrainDelay: "0s",
 	}
 	if strings.Join(s.SkipBodyTypes, "|") != "image/|video/" || strings.Join(s.DisabledRules, "|") != "LSH-2001|LSH-2002" {
 		t.Errorf("lists: %+v", s)
@@ -207,5 +208,38 @@ func TestTLSEnvironment(t *testing.T) {
 	}
 	if s.TLSCertFile != "c" || s.TLSKeyFile != "k" || s.TLSMinVersion != "1.3" || s.UpstreamCAFile != "ca" || s.UpstreamServerName != "n" {
 		t.Errorf("%+v", s)
+	}
+}
+
+func TestTimeouts(t *testing.T) {
+	s := Defaults()
+	got, err := s.Timeouts()
+	if err != nil || got.Read != 30*time.Second || got.ClientWrite != 60*time.Second || got.Drain != 0 {
+		t.Errorf("defaults: %+v %v", got, err)
+	}
+	s.ClientWriteTimeout, s.DrainDelay, s.ReadTimeout = "0s", "5s", "2m"
+	got, err = s.Timeouts()
+	if err != nil || got.ClientWrite >= 0 || got.Drain != 5*time.Second || got.Read != 2*time.Minute {
+		t.Errorf("custom: %+v %v", got, err)
+	}
+	for name, mut := range map[string]func(*Settings){
+		"not a duration": func(s *Settings) { s.ReadTimeout = "soon" },
+		"read too small": func(s *Settings) { s.ReadTimeout = "0s" },
+		"negative drain": func(s *Settings) { s.DrainDelay = "-1s" },
+		"negative write": func(s *Settings) { s.ClientWriteTimeout = "-5s" },
+		"missing unit":   func(s *Settings) { s.DrainDelay = "10" },
+	} {
+		bad := Defaults()
+		bad.Upstream = "http://x:1"
+		mut(&bad)
+		if _, err := bad.ProxyConfig(nil); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	s = Defaults()
+	s.Upstream = "http://x:1"
+	s.ClientWriteTimeout = "0s"
+	if cfg, err := s.ProxyConfig(nil); err != nil || cfg.ClientWriteTimeout >= 0 {
+		t.Errorf("0s must disable the write timeout: %v %v", cfg.ClientWriteTimeout, err)
 	}
 }

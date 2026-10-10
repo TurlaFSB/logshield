@@ -11,8 +11,8 @@ interfaces). They are served on a separate listener, never on the proxy port.
 | `/readyz` | Readiness: 200 when the upstream accepts a TCP connection (probed at most every 2 s) and the process is not shutting down; otherwise 503 with no detail. |
 | `/metrics` | Prometheus text format 0.0.4. |
 
-On `SIGTERM`, `/readyz` fails first, then the proxy stops accepting and finishes
-in-flight requests (up to 15 s).
+On `SIGTERM`, `/readyz` fails first; after `-drain-delay` (default none) the proxy
+stops accepting and finishes in-flight requests (up to 15 s).
 
 ## Metrics
 
@@ -43,5 +43,6 @@ Suggested alerts:
 requests. One more is answered `503` with `Retry-After: 1` immediately instead of
 queueing, in both monitor and block mode. Because each request can buffer up to
 `-max-body` bytes, the limit is also the memory bound (default worst case about
-1 GiB). Long-lived streams occupy a slot for as long as they last, so size the limit
+1 GiB). A client that stops reading is cut off after `-client-write-timeout` (60 s of stall), so
+slow-read attacks cannot pin slots. Long-lived streams occupy a slot for as long as they last, so size the limit
 for your connection mix.

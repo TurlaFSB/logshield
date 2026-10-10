@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -64,5 +65,46 @@ func TestInFlightLimitCanBeDisabledAndValidated(t *testing.T) {
 	p, _ := New(Config{Upstream: mustURL("http://x:1")})
 	if cap(p.slots) != defaultMaxInFlight {
 		t.Errorf("default limit = %d", cap(p.slots))
+	}
+}
+
+// A client that stops reading must not hold a slot (and its buffers) forever.
+func TestSlowReadingClientIsCutOff(t *testing.T) {
+	h := newHarness(t, func(c *Config) { c.ClientWriteTimeout = 300 * time.Millisecond })
+	chunk := make([]byte, 1<<20)
+	h.up.handler = func(w http.ResponseWriter, r *http.Request) {
+		for i := 0; i < 256; i++ { // far more than the socket buffers can hold
+			if _, err := w.Write(chunk); err != nil || r.Context().Err() != nil {
+				return
+			}
+		}
+	}
+	conn := dial(t, h.addr())
+	defer func() { _ = conn.Close() }()
+	_, _ = conn.Write([]byte(rawGET("/big")))
+	// Never read. The proxy must give up on its own.
+	deadline := time.Now().Add(10 * time.Second)
+	for h.proxy.InFlight() != 0 || h.eventCount() == 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("the stalled client still holds a slot (in flight %d)", h.proxy.InFlight())
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func TestClientWriteTimeoutDefaultAndOptOut(t *testing.T) {
+	p, _ := New(Config{Upstream: mustURL("http://x:1")})
+	if p.cfg.ClientWriteTimeout != defaultClientWriteTimeout {
+		t.Errorf("default = %v", p.cfg.ClientWriteTimeout)
+	}
+	p, _ = New(Config{Upstream: mustURL("http://x:1"), ClientWriteTimeout: -1})
+	if p.cfg.ClientWriteTimeout >= 0 {
+		t.Errorf("negative must stay disabled: %v", p.cfg.ClientWriteTimeout)
+	}
+	// A recorder without deadline support must not break writes.
+	rec := &statusRecorder{ResponseWriter: httptest.NewRecorder(), stall: time.Second}
+	rec.rc = http.NewResponseController(rec.ResponseWriter)
+	if _, err := rec.Write([]byte("x")); err != nil {
+		t.Errorf("write failed: %v", err)
 	}
 }

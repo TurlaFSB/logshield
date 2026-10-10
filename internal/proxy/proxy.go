@@ -87,12 +87,24 @@ func newID() string {
 type statusRecorder struct {
 	http.ResponseWriter
 	status int
+	// stall, if positive, is the longest a single write to the client may block.
+	stall time.Duration
+	rc    *http.ResponseController
+}
+
+// armWriteDeadline pushes the connection's write deadline out by stall. Writers
+// that do not support deadlines (test recorders) are left alone.
+func (s *statusRecorder) armWriteDeadline() {
+	if s.stall > 0 {
+		_ = s.rc.SetWriteDeadline(time.Now().Add(s.stall))
+	}
 }
 
 func (s *statusRecorder) WriteHeader(code int) {
 	if s.status == 0 {
 		s.status = code
 	}
+	s.armWriteDeadline()
 	s.ResponseWriter.WriteHeader(code)
 }
 
@@ -100,6 +112,7 @@ func (s *statusRecorder) Write(b []byte) (int, error) {
 	if s.status == 0 {
 		s.status = http.StatusOK
 	}
+	s.armWriteDeadline()
 	return s.ResponseWriter.Write(b)
 }
 
@@ -132,7 +145,10 @@ func (p *Proxy) release() {
 // ServeHTTP inspects r and forwards, blocks or rejects it.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	rec := &statusRecorder{ResponseWriter: w}
+	rec := &statusRecorder{ResponseWriter: w, rc: http.NewResponseController(w)}
+	if p.cfg.ClientWriteTimeout > 0 {
+		rec.stall = p.cfg.ClientWriteTimeout
+	}
 	ev := Event{ID: newID(), Mode: p.cfg.Mode}
 	var (
 		verdict engine.Verdict

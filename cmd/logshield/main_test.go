@@ -429,3 +429,56 @@ func testCert(t *testing.T, dir string) (certFile, keyFile string, pool *x509.Ce
 	pool.AddCert(cert)
 	return certFile, keyFile, pool
 }
+
+// On shutdown readiness fails first and the proxy keeps serving for the drain delay.
+func TestDrainDelayKeepsServingWhileNotReady(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "ok") }))
+	defer up.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addrc := make(chan string, 1)
+	errb := &syncBuffer{}
+	done := make(chan int, 1)
+	go func() {
+		done <- run(ctx, []string{"-listen", "127.0.0.1:0", "-upstream", up.URL, "-admin-listen", "127.0.0.1:0", "-drain-delay", "1s"},
+			io.Discard, errb, func(a string) { addrc <- a })
+	}()
+	addr := <-addrc
+	var admin string
+	for admin == "" {
+		for _, line := range strings.Split(errb.String(), "\n") {
+			if strings.Contains(line, `"msg":"admin endpoints"`) {
+				var rec struct{ Addr string }
+				_ = json.Unmarshal([]byte(line), &rec)
+				admin = rec.Addr
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	status := func(url string) int {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return -1
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode
+	}
+	cancel()
+	deadline := time.Now().Add(3 * time.Second)
+	for status("http://"+admin+"/readyz") != http.StatusServiceUnavailable {
+		if time.Now().After(deadline) {
+			t.Fatal("readiness never failed")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if code := status("http://" + addr + "/"); code != http.StatusOK {
+		t.Errorf("the proxy must keep serving during the drain delay, got %d", code)
+	}
+	if code := <-done; code != 0 {
+		t.Errorf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(errb.String(), `"msg":"draining"`) {
+		t.Errorf("no draining log:\n%s", errb.String())
+	}
+}

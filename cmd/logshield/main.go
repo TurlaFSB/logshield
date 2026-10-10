@@ -72,6 +72,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		tlsMin      = fs.String("tls-min-version", d.TLSMinVersion, "lowest TLS version accepted from clients: 1.2 or 1.3")
 		upstreamCA  = fs.String("upstream-ca", d.UpstreamCAFile, "PEM CA bundle to verify an https upstream (instead of the system roots)")
 		upstreamSNI = fs.String("upstream-server-name", d.UpstreamServerName, "name to verify in the https upstream's certificate, for upstreams addressed by IP")
+		readTimeout = fs.String("read-timeout", d.ReadTimeout, "longest a client may take to send a whole request (raise for large streamed uploads)")
+		writeStall  = fs.String("client-write-timeout", d.ClientWriteTimeout, "longest a single write to a client may stall; 0s disables")
+		drainDelay  = fs.String("drain-delay", d.DrainDelay, "keep serving this long after /readyz starts failing on shutdown")
 		disable     listFlag
 		skip        listFlag
 	)
@@ -127,6 +130,12 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 			settings.MaxInFlight = *maxInFlight
 		case "log-level":
 			settings.LogLevel = *logLevel
+		case "read-timeout":
+			settings.ReadTimeout = *readTimeout
+		case "client-write-timeout":
+			settings.ClientWriteTimeout = *writeStall
+		case "drain-delay":
+			settings.DrainDelay = *drainDelay
 		case "tls-cert":
 			settings.TLSCertFile = *tlsCert
 		case "tls-key":
@@ -196,7 +205,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 			return 1
 		}
 	}
-	srv := proxy.NewServer(settings.Listen, p, proxy.ServerConfig{}, logger)
+	timeouts, _ := settings.Timeouts() // validated by ProxyConfig
+	srv := proxy.NewServer(settings.Listen, p, proxy.ServerConfig{ReadTimeout: timeouts.Read}, logger)
 	if tlsCfg != nil {
 		// HTTP/2 needs the *tls.Conn the server sees, so the listener cannot also
 		// be wrapped to observe protocol errors (documented limitation).
@@ -233,6 +243,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	}
 	if admin != nil {
 		admin.Drain() // readiness fails first, so load balancers stop sending traffic
+		if timeouts.Drain > 0 {
+			logger.Info("draining", "delay", timeouts.Drain.String())
+			time.Sleep(timeouts.Drain)
+		}
 	}
 	sctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()

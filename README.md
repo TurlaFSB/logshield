@@ -93,6 +93,7 @@ live `${`, so the log itself cannot re-trigger a vulnerable log pipeline):
 | `-tls-cert`, `-tls-key` | off | Serve HTTPS with HTTP/2; the certificate is reloaded when the file changes. `-tls-min-version` (1.2 or 1.3). |
 | `-upstream-ca`, `-upstream-server-name` | system roots | Verify an https upstream against a private CA or a specific name. |
 | `-admin-listen` | off | Address for `/metrics`, `/healthz`, `/readyz` ([observability](docs/observability.md)). |
+| `-read-timeout`, `-client-write-timeout`, `-drain-delay` | 30s, 60s, 0s | Request read limit, slow-reader cut-off, and graceful-shutdown delay ([configuration](docs/configuration.md)). |
 | `-max-in-flight` | 1024 | Concurrency limit; the next request gets `503` + `Retry-After`. `-1` disables. |
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |
 | `-disable-rule` | none | Switch off a non-mandatory rule by ID. Repeatable. |

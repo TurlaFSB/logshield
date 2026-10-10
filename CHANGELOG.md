@@ -12,6 +12,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
   ambiguous requests, fail-closed/fail-open inspection errors, defanged
   structured logs, hardened server timeouts, graceful shutdown. See `docs/proxy.md`.
 - `engine.Config.Effective`.
+- `-read-timeout`, `-client-write-timeout`, `-drain-delay` settings.
 - TLS termination with HTTP/2 (`-tls-cert`, `-tls-key`, `-tls-min-version`), certificate hot-reload, and verified https upstreams with a private CA or server-name override. HTTP/2 differentials are covered by raw-frame tests (ADR 0005).
 - Configuration from a strict JSON file, `LOGSHIELD_*` environment variables and flags (`-config`, `-check-config`, `-disable-rule`); unknown keys and variables are reported. See `docs/configuration.md`.
 - Prometheus metrics, `/healthz` and `/readyz` on a separate admin listener (`-admin-listen`), stdlib only (ADR 0004); `-max-in-flight` overload shedding (`503` + `Retry-After`). See `docs/observability.md`.
@@ -20,6 +21,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 - Proxy fuzz target `FuzzNothingMaliciousLeaves`; `CODE_OF_CONDUCT.md`, `SUPPORT.md`; README rewritten.
 
 ### Fixed
+- Slow-read protection: a client that stops reading a response no longer holds an in-flight slot and its buffers indefinitely (`-client-write-timeout`, default 60 s per stalled write).
 - Proxy guard no longer depends on body identity, which Go 1.26 changes by wrapping bodies; it now sends the inspected buffer itself.
 - Bounded multi-layer decoder (`engine.Decode`): gzip, percent, `%uXXXX`,
   backslash escapes, HTML entities, overlong UTF-8, fullwidth folding, with

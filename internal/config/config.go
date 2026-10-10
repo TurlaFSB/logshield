@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/TurlaFSB/logshield/internal/engine"
 	"github.com/TurlaFSB/logshield/internal/proxy"
@@ -45,6 +46,15 @@ type Settings struct {
 	// DisabledRules switches off non-mandatory rules (for tuning false positives).
 	DisabledRules []string `json:"disabled_rules"`
 
+	// Timeouts, as Go duration strings such as "30s". ReadTimeout bounds receiving a
+	// whole request (raise it for large streamed uploads). ClientWriteTimeout is the
+	// longest a single write to a client may stall ("0s" disables). DrainDelay is how
+	// long the proxy keeps serving after /readyz starts failing on shutdown, so load
+	// balancers can notice.
+	ReadTimeout        string `json:"read_timeout"`
+	ClientWriteTimeout string `json:"client_write_timeout"`
+	DrainDelay         string `json:"drain_delay"`
+
 	// TLS termination for clients. Empty cert and key mean plain HTTP.
 	TLSCertFile   string `json:"tls_cert_file"`
 	TLSKeyFile    string `json:"tls_key_file"`
@@ -58,14 +68,17 @@ type Settings struct {
 // Defaults returns the built-in settings: loopback listener and monitor mode.
 func Defaults() Settings {
 	return Settings{
-		Listen:        "127.0.0.1:8080",
-		Mode:          string(proxy.ModeMonitor),
-		OnError:       string(proxy.FailClosed),
-		MaxBodyBytes:  1 << 20,
-		ForwardedFor:  string(proxy.ForwardedForReplace),
-		MaxInFlight:   1024,
-		LogLevel:      "info",
-		TLSMinVersion: "1.2",
+		Listen:             "127.0.0.1:8080",
+		Mode:               string(proxy.ModeMonitor),
+		OnError:            string(proxy.FailClosed),
+		MaxBodyBytes:       1 << 20,
+		ForwardedFor:       string(proxy.ForwardedForReplace),
+		MaxInFlight:        1024,
+		LogLevel:           "info",
+		TLSMinVersion:      "1.2",
+		ReadTimeout:        "30s",
+		ClientWriteTimeout: "60s",
+		DrainDelay:         "0s",
 	}
 }
 
@@ -164,6 +177,9 @@ var envVars = []envVar{
 	}},
 	{"LOG_LEVEL", str(func(s *Settings) *string { return &s.LogLevel })},
 	{"DISABLED_RULES", list(func(s *Settings) *[]string { return &s.DisabledRules })},
+	{"READ_TIMEOUT", str(func(s *Settings) *string { return &s.ReadTimeout })},
+	{"CLIENT_WRITE_TIMEOUT", str(func(s *Settings) *string { return &s.ClientWriteTimeout })},
+	{"DRAIN_DELAY", str(func(s *Settings) *string { return &s.DrainDelay })},
 	{"TLS_CERT_FILE", str(func(s *Settings) *string { return &s.TLSCertFile })},
 	{"TLS_KEY_FILE", str(func(s *Settings) *string { return &s.TLSKeyFile })},
 	{"TLS_MIN_VERSION", str(func(s *Settings) *string { return &s.TLSMinVersion })},
@@ -251,6 +267,12 @@ func (s Settings) ProxyConfig(logger *slog.Logger) (proxy.Config, error) {
 	if err := checked.Validate(); err != nil {
 		errs = append(errs, err)
 	}
+	if _, err := s.Timeouts(); err != nil {
+		errs = append(errs, err)
+	}
+	if t, err := s.Timeouts(); err == nil {
+		cfg.ClientWriteTimeout = t.ClientWrite
+	}
 	if _, err := s.TLSConfig(); err != nil {
 		errs = append(errs, err)
 	}
@@ -265,6 +287,35 @@ func (s Settings) ProxyConfig(logger *slog.Logger) (proxy.Config, error) {
 		errs = append(errs, err)
 	}
 	return cfg, errors.Join(errs...)
+}
+
+// Timeouts are the parsed duration settings. ClientWrite is negative when disabled.
+type Timeouts struct {
+	Read, ClientWrite, Drain time.Duration
+}
+
+// Timeouts parses and validates the duration settings.
+func (s Settings) Timeouts() (Timeouts, error) {
+	var errs []error
+	parse := func(name, v string, min time.Duration) time.Duration {
+		d, err := time.ParseDuration(v)
+		switch {
+		case err != nil:
+			errs = append(errs, fmt.Errorf("%s: %q is not a duration such as 30s or 2m", name, v))
+		case d < min:
+			errs = append(errs, fmt.Errorf("%s: %q is too small", name, v))
+		}
+		return d
+	}
+	t := Timeouts{
+		Read:        parse("read_timeout", s.ReadTimeout, time.Second),
+		ClientWrite: parse("client_write_timeout", s.ClientWriteTimeout, 0),
+		Drain:       parse("drain_delay", s.DrainDelay, 0),
+	}
+	if t.ClientWrite == 0 {
+		t.ClientWrite = -1
+	}
+	return t, errors.Join(errs...)
 }
 
 // TLSConfig returns the client-facing TLS settings, validated. Its CertFile is

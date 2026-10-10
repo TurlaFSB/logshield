@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/TurlaFSB/logshield/internal/engine"
 )
@@ -84,6 +85,12 @@ type Config struct {
 	// 1024; -1 disables the limit.
 	MaxInFlight int
 
+	// ClientWriteTimeout bounds how long a single write to the client may stall.
+	// It is refreshed on every write, so long downloads and streams are fine, but
+	// a client that stops reading (slow-read attack) is cut off instead of holding
+	// an in-flight slot and its buffers forever. Default 60s; negative disables.
+	ClientWriteTimeout time.Duration
+
 	// BlockStatus is the status sent for blocked requests. Default 403.
 	BlockStatus int
 	// ForwardedFor defaults to ForwardedForReplace.
@@ -102,6 +109,8 @@ type Config struct {
 	// Observer, if set, is called once per request with its outcome.
 	Observer Observer
 }
+
+const defaultClientWriteTimeout = 60 * time.Second
 
 // defaultMaxInFlight bounds memory to roughly this many default-size bodies.
 const defaultMaxInFlight = 1024
@@ -179,6 +188,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxBodyBytes == 0 {
 		c.MaxBodyBytes = defaultMaxBody
+	}
+	if c.ClientWriteTimeout == 0 {
+		c.ClientWriteTimeout = defaultClientWriteTimeout
 	}
 	if c.MaxInFlight == 0 {
 		c.MaxInFlight = defaultMaxInFlight

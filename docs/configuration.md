@@ -29,11 +29,22 @@ It exits 0 if valid and 2 if not, which makes it usable as a CI or pre-deploy ch
 | `log_level` | `LOGSHIELD_LOG_LEVEL` | `-log-level` | `info` |
 | `disabled_rules` | `LOGSHIELD_DISABLED_RULES` (comma list) | `-disable-rule` (repeat) | none |
 
+| `read_timeout` | `LOGSHIELD_READ_TIMEOUT` | `-read-timeout` | `30s` |
+| `client_write_timeout` | `LOGSHIELD_CLIENT_WRITE_TIMEOUT` | `-client-write-timeout` | `60s` (`0s` disables) |
+| `drain_delay` | `LOGSHIELD_DRAIN_DELAY` | `-drain-delay` | `0s` |
 | `tls_cert_file` | `LOGSHIELD_TLS_CERT_FILE` | `-tls-cert` | off (plain HTTP) |
 | `tls_key_file` | `LOGSHIELD_TLS_KEY_FILE` | `-tls-key` | |
 | `tls_min_version` | `LOGSHIELD_TLS_MIN_VERSION` | `-tls-min-version` | `1.2` |
 | `upstream_ca_file` | `LOGSHIELD_UPSTREAM_CA_FILE` | `-upstream-ca` | system roots |
 | `upstream_server_name` | `LOGSHIELD_UPSTREAM_SERVER_NAME` | `-upstream-server-name` | the upstream host |
+
+Durations use Go syntax (`30s`, `2m`). `read_timeout` bounds receiving a whole request, so
+raise it if you stream large uploads (`skip_body_types`). `client_write_timeout` is
+refreshed on every write: long downloads and streams are fine, but a client that
+stops reading is cut off instead of holding an in-flight slot forever (slow-read
+protection). `drain_delay` keeps the proxy serving after `/readyz` starts failing
+on shutdown, so a load balancer has time to stop sending traffic; set it to your
+balancer's health-check interval (for example `5s`).
 
 With a certificate and key set, clients are served HTTPS with HTTP/2 and HTTP/1.1
 ([ADR 0005](adr/0005-tls-termination-and-http2.md)). The files are re-read when
