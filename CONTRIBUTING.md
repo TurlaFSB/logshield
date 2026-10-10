@@ -18,6 +18,8 @@ changes is deliberately high.
 
 ```sh
 make check   # vet, lint, tests with race detector, coverage floor
+make fuzz    # fuzz the engine (FUZZTIME=30s by default)
+make bench   # benchmarks; mention results if you touch a hot path
 make vuln    # govulncheck
 ```
 

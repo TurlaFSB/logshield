@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to achieve, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Effect on detection, false positives or latency
+      description: Anything that could make the engine miss payloads, block legitimate traffic, or slow requests down.

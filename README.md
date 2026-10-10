@@ -20,6 +20,22 @@ in front of it can be. A targeted virtual patch buys time and reduces exposure
 while the real fix (patching, removing `JndiLookup`, or retiring the host) is
 planned.
 
+## How it works
+
+```mermaid
+flowchart LR
+    C[Client] --> P[LogShield proxy]
+    P --> D[Decode<br/>every layer kept]
+    D --> R[Resolve<br/>emulate Log4j lookups]
+    R --> V{Verdict}
+    V -- clean --> T[Protected host]
+    V -- suspicious or budget exceeded --> B[Block or monitor]
+```
+
+Decoding and resolution are implemented (Steps 1b and 1c). Rules, verdicts and
+the proxy are next. See the [threat model](docs/threat-model.md) for what this
+does and does not protect against.
+
 ## Design goals
 
 - **Deobfuscation, not string matching.** Log4j resolves nested lookups such as
@@ -48,6 +64,8 @@ Requires Go 1.24 or newer.
 ```sh
 make build        # builds ./bin/logshield
 make check        # vet, lint, tests with race detector and coverage floor
+make fuzz         # fuzz each target (FUZZTIME=30s by default)
+make bench        # benchmarks
 ```
 
 ## Security

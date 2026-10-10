@@ -1,0 +1,34 @@
+name: Bug report
+description: Something other than a security bypass is wrong (crash, false positive, wrong output).
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the problem lets a Log4Shell-class payload through, do not file it here.
+        Use the private security advisory link on the issue chooser instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected and what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Smallest input that reproduces it
+      description: Use inert values only (example.com, *.invalid, 192.0.2.0/24). Never include real hosts or secrets.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and architecture

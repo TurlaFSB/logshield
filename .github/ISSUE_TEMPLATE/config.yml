@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security issue or a detection bypass
+    url: https://github.com/TurlaFSB/logshield/security/advisories/new
+    about: Bypasses and vulnerabilities are handled privately. Please do not open a public issue.
