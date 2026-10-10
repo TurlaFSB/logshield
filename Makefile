@@ -10,12 +10,13 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-# Minimum total statement coverage, in percent. Raised as the engine matures
-# (target 90 by the end of Step 1).
-COVER_MIN ?= 80
+# Minimum total statement coverage, in percent. This is a ratchet: it only goes up.
+COVER_MIN ?= 90
 GOVULNCHECK_VERSION := v1.1.4
+FUZZTIME ?= 30s
+FUZZ_TARGETS := FuzzDecode FuzzResolve
 
-.PHONY: help build test race cover cover-check fmt vet lint vuln check
+.PHONY: help build test race cover cover-check fuzz bench fmt vet lint vuln check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -37,6 +38,15 @@ cover-check: cover ## Fail if total coverage is below COVER_MIN
 	echo "total coverage: $$total% (floor: $(COVER_MIN)%)"; \
 	awk -v t="$$total" -v m="$(COVER_MIN)" 'BEGIN { exit (t+0 >= m+0) ? 0 : 1 }' || \
 	  { echo "coverage $$total% is below the $(COVER_MIN)% floor"; exit 1; }
+
+fuzz: ## Fuzz each target for FUZZTIME (default 30s)
+	@for t in $(FUZZ_TARGETS); do \
+	  echo "fuzzing $$t for $(FUZZTIME)"; \
+	  go test ./internal/engine -run '^$$' -fuzz="^$$t$$" -fuzztime=$(FUZZTIME) || exit 1; \
+	done
+
+bench: ## Run benchmarks
+	go test ./internal/engine -run '^$$' -bench . -benchmem
 
 fmt: ## Format code
 	gofmt -s -w .

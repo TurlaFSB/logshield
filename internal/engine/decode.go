@@ -39,6 +39,9 @@ const (
 	BudgetStages                   // more than MaxStages distinct decoded variants
 	BudgetStageBytes               // one decoded variant larger than MaxStageBytes
 	BudgetTotalBytes               // all variants together larger than MaxTotalBytes
+	BudgetNesting                  // lookups nested deeper than MaxNesting
+	BudgetLookups                  // more than MaxLookups lookups to evaluate
+	BudgetValueBytes               // a lookup name or value larger than MaxValueBytes
 )
 
 // String returns a stable, log-safe identifier for the budget.
@@ -56,6 +59,12 @@ func (b Budget) String() string {
 		return "stage-bytes"
 	case BudgetTotalBytes:
 		return "total-bytes"
+	case BudgetNesting:
+		return "nesting"
+	case BudgetLookups:
+		return "lookups"
+	case BudgetValueBytes:
+		return "value-bytes"
 	default:
 		return "unknown"
 	}
@@ -75,6 +84,13 @@ type Limits struct {
 	MaxStageBytes int
 	// MaxTotalBytes caps the combined size of all variants.
 	MaxTotalBytes int
+	// MaxNesting is the deepest allowed nesting of "${" lookups (Resolve).
+	MaxNesting int
+	// MaxLookups caps the lookups Resolve may evaluate in one text, counting
+	// re-expansion of lookup results. Plain "${word}" placeholders do not count.
+	MaxLookups int
+	// MaxValueBytes caps any single lookup name or computed value (Resolve).
+	MaxValueBytes int
 }
 
 // DefaultLimits returns the default budgets. They are generous for real traffic
@@ -87,6 +103,9 @@ func DefaultLimits() Limits {
 		MaxStages:     32,
 		MaxStageBytes: 2 << 20,
 		MaxTotalBytes: 8 << 20,
+		MaxNesting:    16,
+		MaxLookups:    2048,
+		MaxValueBytes: 32 << 10,
 	}
 }
 
@@ -106,6 +125,15 @@ func (l Limits) withDefaults() Limits {
 	}
 	if l.MaxTotalBytes <= 0 {
 		l.MaxTotalBytes = d.MaxTotalBytes
+	}
+	if l.MaxNesting <= 0 {
+		l.MaxNesting = d.MaxNesting
+	}
+	if l.MaxLookups <= 0 {
+		l.MaxLookups = d.MaxLookups
+	}
+	if l.MaxValueBytes <= 0 {
+		l.MaxValueBytes = d.MaxValueBytes
 	}
 	return l
 }
@@ -129,6 +157,10 @@ type Result struct {
 	// Exhausted reports which budget stopped decoding, or BudgetNone.
 	Exhausted Budget
 }
+
+// Complete reports whether decoding finished within every budget. When it is
+// false the Stages are only a partial view and the request must be blocked.
+func (r Result) Complete() bool { return r.Exhausted == BudgetNone }
 
 // transform is one decoding step. It returns the decoded text and whether
 // anything changed. over is true only when a hard output limit was exceeded.

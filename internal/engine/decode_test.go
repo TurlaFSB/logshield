@@ -300,6 +300,15 @@ func TestDecodeGzipEmptyBody(t *testing.T) {
 	}
 }
 
+func TestResultComplete(t *testing.T) {
+	if !Decode("plain", Limits{}).Complete() {
+		t.Error("an in-budget decode must be Complete")
+	}
+	if Decode("123456789", Limits{MaxInputBytes: 8}).Complete() {
+		t.Error("an exhausted decode must not be Complete")
+	}
+}
+
 func TestLimitsDefaults(t *testing.T) {
 	d := DefaultLimits()
 	if got := (Limits{}).withDefaults(); got != d {
@@ -308,7 +317,10 @@ func TestLimitsDefaults(t *testing.T) {
 	if got := (Limits{MaxDepth: -3, MaxStages: -1}).withDefaults(); got != d {
 		t.Errorf("negative Limits = %+v, want defaults %+v", got, d)
 	}
-	custom := Limits{MaxInputBytes: 1, MaxDepth: 2, MaxStages: 3, MaxStageBytes: 4, MaxTotalBytes: 5}
+	custom := Limits{
+		MaxInputBytes: 1, MaxDepth: 2, MaxStages: 3, MaxStageBytes: 4, MaxTotalBytes: 5,
+		MaxNesting: 6, MaxLookups: 7, MaxValueBytes: 8,
+	}
 	if got := custom.withDefaults(); got != custom {
 		t.Errorf("explicit Limits changed: %+v, want %+v", got, custom)
 	}
@@ -322,6 +334,9 @@ func TestBudgetString(t *testing.T) {
 		BudgetStages:     "stages",
 		BudgetStageBytes: "stage-bytes",
 		BudgetTotalBytes: "total-bytes",
+		BudgetNesting:    "nesting",
+		BudgetLookups:    "lookups",
+		BudgetValueBytes: "value-bytes",
 		Budget(99):       "unknown",
 	}
 	for b, want := range tests {
