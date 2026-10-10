@@ -14,7 +14,7 @@ LDFLAGS := -s -w \
 COVER_MIN ?= 90
 GOVULNCHECK_VERSION := v1.1.4
 FUZZTIME ?= 30s
-FUZZ_TARGETS := FuzzDecode FuzzResolve
+FUZZ_TARGETS := FuzzDecode FuzzResolve FuzzInspect
 
 .PHONY: help build test race cover cover-check fuzz bench fmt vet lint vuln check
 
