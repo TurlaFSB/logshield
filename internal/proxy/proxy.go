@@ -177,7 +177,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			out.Body = nil
 		}
 	case bodyStreamed:
-		out.Body = &streamedBody{Reader: io.MultiReader(bytes.NewReader(body.data), body.rest), Closer: r.Body}
+		pl.stream = &streamedBody{Reader: io.MultiReader(bytes.NewReader(body.data), body.rest), Closer: r.Body}
+		out.Body = pl.stream
 	}
 	ev.Action = ActionForwarded
 	p.rp.ServeHTTP(rec, out)

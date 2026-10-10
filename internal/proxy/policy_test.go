@@ -412,17 +412,28 @@ func TestPlanVerifyBodyRules(t *testing.T) {
 	})
 	t.Run("streamed body", func(t *testing.T) {
 		pl, req := mk(bodyStreamed, "")
-		req.Body = &streamedBody{Reader: strings.NewReader("x"), Closer: io.NopCloser(nil)}
+		if err := pl.verify(req); !errors.Is(err, errGuard) {
+			t.Errorf("unplanned stream accepted: %v", err)
+		}
+		pl.stream = &streamedBody{Reader: strings.NewReader("planned"), Closer: io.NopCloser(nil)}
 		if err := pl.verify(req); err != nil {
 			t.Errorf("err = %v", err)
 		}
-		req.Body = io.NopCloser(strings.NewReader("x"))
-		if err := pl.verify(req); !errors.Is(err, errGuard) {
-			t.Errorf("foreign stream accepted: %v", err)
+		// A foreign or wrapped body is replaced by the planned stream.
+		req.Body = io.NopCloser(strings.NewReader("EVIL"))
+		req = req.WithContext(withPlan(req.Context(), pl))
+		var sent []byte
+		g := guardTransport{next: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			sent, _ = io.ReadAll(r.Body)
+			return &http.Response{StatusCode: http.StatusNoContent, Body: http.NoBody, Request: r}, nil
+		})}
+		resp, err := g.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
 		}
-		req.Body = nil
-		if err := pl.verify(req); err != nil {
-			t.Errorf("empty stream: %v", err)
+		_ = resp.Body.Close()
+		if string(sent) != "planned" {
+			t.Errorf("sent %q, want the planned stream", sent)
 		}
 	})
 	t.Run("content-length header must match", func(t *testing.T) {

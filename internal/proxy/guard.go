@@ -44,6 +44,7 @@ type plan struct {
 	host     string // expected outbound Host
 	kind     bodyKind
 	body     *bufferedBody
+	stream   *streamedBody // bodyStreamed only
 	bodyLen  int
 
 	// failure is set by the error handler for logging and metrics.
@@ -121,9 +122,10 @@ func (p *plan) verify(req *http.Request) error {
 			return bad("body length differs from the inspected buffer")
 		}
 	case bodyStreamed:
-		if _, ok := req.Body.(*streamedBody); !ok && req.Body != nil && req.Body != http.NoBody {
-			return bad("body is not the expected stream")
+		if p.stream == nil {
+			return bad("no stream was planned")
 		}
+		// As above, RoundTrip substitutes the planned stream for whatever arrives.
 	}
 	return nil
 }
@@ -145,6 +147,10 @@ func (g guardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		req = req.WithContext(req.Context())
 		req.Body = pl.body
 		_ = orig.Close()
+	}
+	if pl.kind == bodyStreamed {
+		req = req.WithContext(req.Context())
+		req.Body = pl.stream
 	}
 	return g.next.RoundTrip(req)
 }
