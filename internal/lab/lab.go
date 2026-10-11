@@ -49,8 +49,13 @@ const (
 const (
 	ProxySkipped = "skipped"
 	ProxyBlocked = "blocked"
-	ProxyPassed  = "passed"
-	ProxyError   = "error"
+	// ProxyRefused: an error status that is not the block status and carries no
+	// canary reply. Either LogShield refused a malformed request, or the canary
+	// answered with an error. No Log4j effect was observed.
+	ProxyRefused = "refused"
+	// ProxyPassed: the request was served by the canary.
+	ProxyPassed = "passed"
+	ProxyError  = "error"
 )
 
 // Problem kinds. Any of them fails the run.
@@ -331,6 +336,8 @@ func runOne(ctx context.Context, e corpus.Entry, o Options) Result {
 				r.Proxy, r.Err = ProxyError, strings.TrimSpace(r.Err+" proxy: "+perr.Error())
 			case presp.Status == o.BlockCode && presp.Canary == nil:
 				r.Proxy, r.ProxyStatus = ProxyBlocked, presp.Status
+			case presp.Canary == nil && presp.Status >= 400:
+				r.Proxy, r.ProxyStatus = ProxyRefused, presp.Status
 			default:
 				r.Proxy, r.ProxyStatus = ProxyPassed, presp.Status
 				// The reply shows what Log4j did with the request the proxy forwarded.

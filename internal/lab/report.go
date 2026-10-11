@@ -8,14 +8,19 @@ import (
 
 // Summary aggregates a run.
 type Summary struct {
-	Total         int
-	ByTruth       map[Truth]int
-	ByProblem     map[string]int
-	Triggered     int
-	Caught        int // triggered and flagged malicious
-	OverBlocked   int // not triggered, attack-class, flagged malicious
-	ProxyBlocked  int
-	ProxyPassed   int
+	Total        int
+	ByTruth      map[Truth]int
+	ByProblem    map[string]int
+	Triggered    int
+	Caught       int // triggered and flagged malicious
+	OverBlocked  int // not triggered, attack-class, flagged malicious
+	ProxyBlocked int
+	ProxyPassed  int
+	ProxyRefused int
+	// LookupPassed counts requests where Log4j resolved a non-JNDI lookup
+	// (for example an environment variable) and the proxy let them through.
+	// Informational: the default policy does not block suspicious requests.
+	LookupPassed  int
 	BenignTotal   int
 	BenignBlocked int
 }
@@ -48,6 +53,11 @@ func Summarize(rs []Result) Summary {
 			s.ProxyBlocked++
 		case ProxyPassed:
 			s.ProxyPassed++
+			if r.Truth == TruthLookupOnly {
+				s.LookupPassed++
+			}
+		case ProxyRefused:
+			s.ProxyRefused++
 		}
 	}
 	return s
@@ -83,7 +93,8 @@ func Markdown(rs []Result, s Summary, meta map[string]string) string {
 	fmt.Fprintf(&b, "| No ground truth (indeterminate) | %d |\n", s.ByTruth[TruthUnknown])
 	fmt.Fprintf(&b, "| Attack-class entries blocked although Log4j ignored them (over-blocks) | %d |\n", s.OverBlocked)
 	fmt.Fprintf(&b, "| Benign entries run / blocked | %d / %d |\n", s.BenignTotal, s.BenignBlocked)
-	fmt.Fprintf(&b, "| Proxy phase: blocked / passed | %d / %d |\n", s.ProxyBlocked, s.ProxyPassed)
+	fmt.Fprintf(&b, "| Proxy phase: blocked / passed / refused | %d / %d / %d |\n", s.ProxyBlocked, s.ProxyPassed, s.ProxyRefused)
+	fmt.Fprintf(&b, "| Non-JNDI lookups Log4j resolved that the proxy let through (information, see docs/lab.md) | %d |\n", s.LookupPassed)
 	for _, p := range []string{ProblemMiss, ProblemLeak, ProblemFalsePos, ProblemExpect, ProblemUnknown} {
 		fmt.Fprintf(&b, "| **%s** | %d |\n", p, s.ByProblem[p])
 	}

@@ -10,19 +10,16 @@
 //
 // Env: CANARY_PORT (default 8080), CANARY_ADDR (default 127.0.0.1),
 //      CANARY_MAX_BODY (default 65536).
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import lab.jndi.Hook;
 import java.util.concurrent.Executors;
 import org.apache.logging.log4j.Level;
@@ -70,34 +67,74 @@ public final class Canary {
             System.exit(1);
         }
 
-        HttpServer srv = HttpServer.create(new InetSocketAddress(addr, Integer.parseInt(portS)), 128);
-        srv.setExecutor(Executors.newFixedThreadPool(8));
-        srv.createContext("/", Canary::handle);
-        srv.start();
+        ServerSocket srv = new ServerSocket(Integer.parseInt(portS), 128, InetAddress.getByName(addr));
+        java.util.concurrent.ExecutorService pool = Executors.newFixedThreadPool(8);
+        Thread acceptor = new Thread(() -> {
+            for (;;) {
+                try {
+                    final Socket c = srv.accept();
+                    pool.execute(() -> serve(c));
+                } catch (IOException e) {
+                    return;
+                }
+            }
+        }, "accept");
+        acceptor.start();
         System.out.println("canary listening on " + addr + ":" + portS + " (log4j-core 2.14.1, lookups ON)");
     }
 
-    private static void handle(HttpExchange ex) throws IOException {
-        List<String[]> items = new ArrayList<>(); // {source, raw}
-        String rawUri = ex.getRequestURI().getRawPath();
-        String rawQuery = ex.getRequestURI().getRawQuery();
-        items.add(new String[] {"path", rawUri});
-        items.add(new String[] {"path.decoded", dec(rawUri)});
-        if (rawQuery != null) {
-            items.add(new String[] {"query", rawQuery});
-            items.add(new String[] {"query.decoded", dec(rawQuery)});
-        }
-        for (Map.Entry<String, List<String>> h : ex.getRequestHeaders().entrySet()) {
-            for (String v : h.getValue()) {
-                items.add(new String[] {"header:" + h.getKey(), v});
+    private static void serve(Socket c) {
+        try (Socket sock = c) {
+            sock.setSoTimeout(5000);
+            RawHttp.Req req;
+            try {
+                req = RawHttp.parse(sock.getInputStream(), 65536, maxBody);
+            } catch (IOException e) {
+                respond(sock, 400, "bad request: " + e.getMessage());
+                return;
             }
+            if (req == null) return;
+            respond(sock, 200, report(req));
+        } catch (Exception ignored) {
+            // the peer went away; nothing to report
         }
-        byte[] body = readBounded(ex.getRequestBody(), maxBody);
-        if (body.length > 0) {
-            String b = new String(body, StandardCharsets.UTF_8);
-            items.add(new String[] {"body", b});
-        }
+    }
 
+    private static void respond(Socket sock, int status, String body) {
+        try {
+            byte[] b = body.getBytes(StandardCharsets.UTF_8);
+            String head = "HTTP/1.1 " + status + (status == 200 ? " OK" : " Bad Request") + "\r\n"
+                + "Content-Type: " + (status == 200 ? "application/json" : "text/plain") + "\r\n"
+                + "Content-Length: " + b.length + "\r\nConnection: close\r\n\r\n";
+            OutputStream os = sock.getOutputStream();
+            os.write(head.getBytes(StandardCharsets.ISO_8859_1));
+            os.write(b);
+            os.flush();
+        } catch (IOException ignored) {
+            // ignore
+        }
+    }
+
+    private static String report(RawHttp.Req req) {
+        List<String[]> items = new ArrayList<>(); // {source, raw}
+        items.add(new String[] {"method", req.method});
+        String target = req.target;
+        int q = target.indexOf('?');
+        String path = q < 0 ? target : target.substring(0, q);
+        items.add(new String[] {"path", path});
+        items.add(new String[] {"path.decoded", dec(path)});
+        if (q >= 0) {
+            String query = target.substring(q + 1);
+            items.add(new String[] {"query", query});
+            items.add(new String[] {"query.decoded", dec(query)});
+        }
+        for (String[] h : req.headers) {
+            items.add(new String[] {"header-name", h[0]});
+            items.add(new String[] {"header:" + h[0], h[1]});
+        }
+        if (req.body.length > 0) {
+            items.add(new String[] {"body", new String(req.body, StandardCharsets.UTF_8)});
+        }
         StringBuilder out = new StringBuilder("{\"items\":[");
         boolean first = true;
         for (String[] it : items) {
@@ -122,12 +159,7 @@ public final class Canary {
             out.append("}");
         }
         out.append("]}");
-        byte[] resp = out.toString().getBytes(StandardCharsets.UTF_8);
-        ex.getResponseHeaders().set("Content-Type", "application/json");
-        ex.sendResponseHeaders(200, resp.length);
-        try (OutputStream os = ex.getResponseBody()) {
-            os.write(resp);
-        }
+        return out.toString();
     }
 
     // render logs msg through real Log4j and returns exactly what the layout wrote.
@@ -152,20 +184,6 @@ public final class Canary {
         } catch (Exception e) {
             return s;
         }
-    }
-
-    private static byte[] readBounded(InputStream in, int max) throws IOException {
-        ByteArrayOutputStream bo = new ByteArrayOutputStream();
-        byte[] buf = new byte[4096];
-        int n;
-        while ((n = in.read(buf)) > 0) {
-            if (bo.size() + n > max) {
-                bo.write(buf, 0, max - bo.size());
-                break;
-            }
-            bo.write(buf, 0, n);
-        }
-        return bo.toByteArray();
     }
 
     private static String js(String s) {

@@ -30,6 +30,14 @@ labrun --via----->  LogShield (block) --> canary  --> blocked | passed (+ what L
 | `EXPECT_MISMATCH` | the engine disagrees with the corpus entry | yes |
 | `INDETERMINATE` | an attack entry got no ground truth (the canary rejected it or timed out), so it proves nothing | yes |
 | over-block | an attack-class entry that Log4j ignored but the engine blocks | no, counted |
+| non-JNDI lookups passed | Log4j resolved a lookup such as `${env:...}` or `${java:...}` and the proxy forwarded it | no, counted (information) |
+
+The last row is a policy point, not a defect. Those requests are *suspicious*,
+not malicious, and the default configuration forwards suspicious requests.
+Set `-block-suspicious` to block them (see [configuration](configuration.md)).
+A proxy outcome of **refused** means an error status that is not the block
+status and carries no canary reply: LogShield refused a malformed request, or
+the canary answered with an error. No Log4j effect was observed.
 
 Over-blocks are expected: the engine is deliberately conservative (it blocks
 malformed or over-budget input, which fails closed). The report counts them so
@@ -127,9 +135,12 @@ to `VERSIONS.txt`, so the artifacts can be cross-checked independently.
 - **The oracle is the JNDI call, not exploitation.** "Triggered" means Log4j
   asked to look the name up. Whether an exploit then succeeds depends on the
   JDK, the gadget classes and the network, which are out of scope.
-- **The canary's HTTP server (JDK `HttpServer`) is not the real app.** It
-  rejects some malformed requests; those entries are reported as
-  `INDETERMINATE`, not silently passed. Malformed framing is covered by the
-  proxy tests instead.
+- **The canary's HTTP reader is lenient on purpose.** It takes the request
+  target and header names and values exactly as sent (`lab/canary/RawHttp.java`,
+  tested by `make lab-java`), so payloads in the path, query or header names
+  reach Log4j. A strict server in front of a real application might refuse some
+  of these requests before the application logs them; that makes the canary the
+  worst case, not an optimistic one. Entries the canary still cannot answer are
+  reported as `INDETERMINATE`, never as passes.
 - **Only corpus requests are sent.** Novel evasions are found by the fuzzers
   and by adding what the lab finds back into the corpus.

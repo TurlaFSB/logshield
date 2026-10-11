@@ -180,6 +180,8 @@ jobs:
         run: make integration
         env:
           REQUIRE_BACKENDS: "1"
+      - name: Test the lab canary's raw HTTP reader
+        run: make lab-java
 
   load-smoke:
     name: Latency budget smoke test

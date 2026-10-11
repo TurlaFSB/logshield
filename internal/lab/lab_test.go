@@ -211,3 +211,32 @@ func TestTruthOfCanaryError(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+func TestProxyRefusedIsNotPassed(t *testing.T) {
+	// A canary that answers 400 to everything, behind a proxy: nothing was served.
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadRequest) }))
+	defer bad.Close()
+	good := fakeCanary(t)
+	defer good.Close()
+	addr := startProxy(t, bad.URL, proxy.ModeBlock)
+	e := entry("benign", "benign", "clean", "/")
+	res, err := Run(context.Background(), []corpus.Entry{e}, Options{CanaryAddr: strings.TrimPrefix(good.URL, "http://"), ProxyAddr: addr}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res[0].Proxy != ProxyRefused || res[0].ProxyStatus != http.StatusBadRequest {
+		t.Fatalf("want refused/400, got %+v", res[0])
+	}
+	if s := Summarize(res); s.ProxyRefused != 1 || s.ProxyPassed != 0 {
+		t.Fatalf("summary: %+v", s)
+	}
+}
+
+func TestLookupOnlyPassedIsCountedNotFailed(t *testing.T) {
+	res := []Result{{Dataset: "bypass", Truth: TruthLookupOnly, Engine: "suspicious", Expect: "suspicious", Proxy: ProxyPassed}}
+	res[0].Problems = Classify(res[0], false)
+	s := Summarize(res)
+	if s.LookupPassed != 1 || s.Failed() {
+		t.Fatalf("summary: %+v", s)
+	}
+}

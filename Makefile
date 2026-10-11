@@ -73,6 +73,9 @@ vuln: ## Scan dependencies and stdlib for known vulnerabilities
 integration: ## Run the proxy in front of real Node, Python and JDK backends (REQUIRE_BACKENDS=1 to fail if one is missing)
 	go test -tags integration -race -count=1 -run TestProxyInFrontOfRealBackends ./internal/proxy
 
+lab-java: ## Test the lab canary's raw HTTP reader (needs a JDK 11+)
+	rm -rf .lab-java && mkdir .lab-java && javac -d .lab-java lab/canary/RawHttp.java lab/canary-test/RawHttpCheck.java && java -cp .lab-java RawHttpCheck && rm -rf .lab-java
+
 load: ## Measure proxy latency overhead and write docs/load-report.md (LOAD_DURATION seconds per phase)
 	cd internal/proxy && LOAD_REPORT=$(CURDIR)/docs/load-report.md go test -tags load -count=1 -run TestLatencyOverhead .
 
