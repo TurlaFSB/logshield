@@ -1,0 +1,118 @@
+# Lab: differential validation against real Log4j
+
+The engine's corpora say what *we think* is an attack. The lab asks the harder
+question: **does a real, vulnerable Log4j actually act on this request, and did
+LogShield stop it?** Every miss found here is a miss that matters.
+
+## What is compared
+
+For each corpus entry the runner (`cmd/labrun`) gets three answers:
+
+| Answer | From |
+|---|---|
+| **Truth**: did Log4j attempt a JNDI lookup? | The *canary*, a small HTTP app that logs every part of every request through **Log4j 2.14.1** with lookups on, then reports what Log4j rendered and which JNDI names it tried to resolve. |
+| **Engine**: what does LogShield decide? | `engine.Inspect`, run locally with default settings. |
+| **Proxy**: does the request get through? | The same request sent through a real LogShield process in **block** mode in front of the canary. |
+
+```text
+labrun --direct-->  canary (Log4j 2.14.1)  --> truth
+labrun --engine-->  verdict
+labrun --via----->  LogShield (block) --> canary  --> blocked | passed (+ what Log4j did)
+```
+
+## Pass and fail
+
+| Problem | Meaning | Fails the run |
+|---|---|---|
+| `MISS` | Log4j attempted a JNDI lookup, the engine did not say *malicious* | yes |
+| `LEAK` | Log4j attempted a JNDI lookup on a request that came through the proxy | yes |
+| `FALSE_POSITIVE` | a benign entry was blocked | yes |
+| `EXPECT_MISMATCH` | the engine disagrees with the corpus entry | yes |
+| `INDETERMINATE` | an attack entry got no ground truth (the canary rejected it or timed out), so it proves nothing | yes |
+| over-block | an attack-class entry that Log4j ignored but the engine blocks | no, counted |
+
+Over-blocks are expected: the engine is deliberately conservative (it blocks
+malformed or over-budget input, which fails closed). The report counts them so
+the cost is visible.
+
+## The oracle, and why it is hermetic
+
+The corpora point at reserved names (`192.0.2.1`, `example.com`), so a real
+network listener would never see them. Instead the canary runs with
+`-Djava.naming.factory.url.pkgs=lab.jndi`. JNDI then resolves `ldap://`,
+`ldaps://`, `rmi://`, `dns://`, `iiop://` and `corbaname://` through recording
+stubs (`lab/canary/lab/jndi`) that note the exact name and refuse the lookup.
+It is Log4j itself that parses the (possibly obfuscated) text and calls
+`InitialContext.lookup`; we only watch the call. No packet is ever sent.
+
+Because a stub is not the JDK, the lab proves the stub is faithful with
+`./run.sh faithful`: a second canary without the hook sends a real lookup to a
+logging-only listener on `127.0.0.1`, and the hook canary must report the same
+name for the same request.
+
+## Containment
+
+- Everything binds `127.0.0.1`. The lab VM is on a host-only network.
+- The hook canary refuses every lookup, so a payload cannot cause a callback,
+  class loading or code execution. The listener never answers with anything a
+  JNDI client could interpret (TCP is read once and closed; DNS answers only
+  `127.0.0.1`).
+- The only network-capable canary (`canary-real`) is used by `faithful` with a
+  payload that points at `127.0.0.1`.
+- Reports contain payloads only defanged (`${` is written `$%7B`).
+- The vulnerable Log4j runs as a throwaway process on a VM that is meant to be
+  vulnerable. Do not copy the canary, the jars or the bundle anywhere else.
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `lab/canary/` | `Canary.java` (the oracle app) and `lab/jndi/` (the recording hook) |
+| `lab/listener/` | `Listener.java`, the logging-only TCP/DNS listener and its control API |
+| `lab/bundle.py` | Run on the **host**: downloads and verifies the JDK and jars, builds Linux binaries, writes a manifest and a tarball |
+| `lab/setup.sh`, `lab/run.sh` | Run on the **VM**: verify, compile, start, `faithful`, `run`, stop |
+| `internal/lab`, `cmd/labrun` | Request builder, classification, report (unit-tested with fakes and the real proxy) |
+
+## Running it
+
+On the host (any OS with Python 3, and Go if you want fresh binaries):
+
+```sh
+python3 lab/bundle.py --out lab-bundle
+# copy lab-bundle/logshield-lab.tar.gz to the VM and compare its sha256
+```
+
+On the VM:
+
+```sh
+tar xzf logshield-lab.tar.gz && cd logshield-lab
+./setup.sh          # verify manifest, unpack JDK 8, compile
+./run.sh start
+./run.sh faithful   # must print PASS before the results mean anything
+./run.sh run        # corpora, direct + via LogShield -> lab-out/report.md
+./run.sh stop
+```
+
+`bundle.py` verifies the JDK against the Adoptium API's SHA-256 and each jar
+against Maven Central's `.sha1`, and writes the SHA-256 of everything it fetched
+to `VERSIONS.txt`, so the artifacts can be cross-checked independently.
+
+## Limits of this lab (read before quoting a result)
+
+- **One Log4j version.** Only 2.14.1 with message lookups on. Versions 2.15 to
+  2.16 behave differently by design, and LogShield is for hosts that cannot be
+  patched, so 2.14.1 is the representative case. It is not a proof about other
+  versions or about Logback and other loggers.
+- **One logging path.** The canary logs each value as the message (`%m`).
+  Applications that log through other layout fields or `ThreadContext` can
+  reach lookups differently. The engine does not depend on the logging path,
+  but this lab does not test those paths.
+- **The oracle is the JNDI call, not exploitation.** "Triggered" means Log4j
+  asked to look the name up. Whether an exploit then succeeds depends on the
+  JDK, the gadget classes and the network, which are out of scope.
+- **The canary's HTTP server (JDK `HttpServer`) is not the real app.** It
+  rejects some malformed requests; those entries are reported as
+  `INDETERMINATE`, not silently passed. Malformed framing is covered by the
+  proxy tests instead.
+- **Only corpus requests are sent.** Novel evasions are found by the fuzzers
+  and by adding what the lab finds back into the corpus.

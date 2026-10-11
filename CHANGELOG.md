@@ -7,6 +7,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 ## [Unreleased]
 
 ### Added
+- Lab for differential validation against real Log4j 2.14.1: canary with a hermetic JNDI hook, logging-only listener, `labrun`, a verifying bundle script (`lab/bundle.py`) and `docs/lab.md`.
 - Reverse proxy (`internal/proxy`, `cmd/logshield`): monitor and block modes,
   request normalization with a forwarded-equals-inspected guard, rejection of
   ambiguous requests, fail-closed/fail-open inspection errors, defanged

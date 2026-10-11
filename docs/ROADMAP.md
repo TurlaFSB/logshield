@@ -31,7 +31,7 @@ These are goals to be confirmed by measurement, not claims.
 
 ## Step 3: lab, validation, release
 
-- [ ] **3a. Lab design**: isolated host-only network with a client, the LogShield host, a Windows target running a Log4j 2.x test application, a legacy Linux neighbor (Metasploitable 3), a logging-only canary listener, and egress filtering
+- [x] **3a. Lab design and tooling**: a Log4j 2.14.1 canary with a hermetic JNDI hook, a logging-only listener, the `labrun` differential runner, a verified host-side bundle, and [docs/lab.md](lab.md). The Windows target is dropped: the Ubuntu 14.04 VM has no Java, so the canary runs from a bundled JDK 8.
 - [ ] **3b. Lab runs**: baseline, WAF off vs on, egress filter off vs on
 - [ ] **3c. Differential validation**: label the corpus with ground truth from real vulnerable Log4j, compare against engine verdicts
 - [ ] **3d. Release engineering**: distroless non-root image, keyless signing, SBOM, build provenance, CodeQL, Scorecard, branch protection
