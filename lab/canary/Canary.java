@@ -135,6 +135,10 @@ public final class Canary {
         if (req.body.length > 0) {
             items.add(new String[] {"body", new String(req.body, StandardCharsets.UTF_8)});
         }
+        // What a typical framework would decode and hand to a logger.
+        for (String[] v : AppViews.of(req)) {
+            items.add(new String[] {"view:" + v[0], v[1]});
+        }
         StringBuilder out = new StringBuilder("{\"items\":[");
         boolean first = true;
         for (String[] it : items) {

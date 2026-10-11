@@ -30,6 +30,7 @@ labrun --via----->  LogShield (block) --> canary  --> blocked | passed (+ what L
 | `EXPECT_MISMATCH` | the engine disagrees with the corpus entry | yes |
 | `INDETERMINATE` | an attack entry got no ground truth (the canary rejected it or timed out), so it proves nothing | yes |
 | over-block | an attack-class entry that Log4j ignored but the engine blocks | no, counted |
+| rewrite-only | Log4j only rewrote text, such as a default `${x:-d}` or a `$${` escape | no, counted |
 | non-JNDI lookups passed | Log4j resolved a lookup such as `${env:...}` or `${java:...}` and the proxy forwarded it | no, counted (information) |
 
 The last row is a policy point, not a defect. Those requests are *suspicious*,
@@ -54,9 +55,28 @@ It is Log4j itself that parses the (possibly obfuscated) text and calls
 `InitialContext.lookup`; we only watch the call. No packet is ever sent.
 
 Because a stub is not the JDK, the lab proves the stub is faithful with
-`./run.sh faithful`: a second canary without the hook sends a real lookup to a
-logging-only listener on `127.0.0.1`, and the hook canary must report the same
-name for the same request.
+`./run.sh faithful`. A second canary without the hook sends real lookups to a
+logging-only listener on `127.0.0.1`, and the hook canary must agree on every
+probe: `ldap://` and `rmi://` must trigger in both; an uppercase `LDAP://`
+scheme, `http://` and `nis://` (which the JDK cannot resolve) must trigger in
+neither.
+
+### What the canary logs
+
+For every request it logs the method, path, query, header names, header values
+and body exactly as sent, plus their URL-decoded forms, **and the views a
+mainstream application stack would hand to a logger** (`lab/canary/AppViews.java`,
+tested by `make lab-java`): form fields, cookies (percent-decoded), the Basic
+credential (whole, and split at the first colon like servers do), JWT segments,
+JSON string escapes, bodies decoded with the declared charset or sniffed
+UTF-16/32, gunzipped or inflated bodies, and multipart parts with their
+charsets. Log4j itself decodes none of these, but applications routinely do,
+and the Basic-auth user name is the classic Log4Shell vector.
+
+Not modelled, because frameworks do not do them by default: HTML entities,
+backslash escapes, full-width forms, overlong UTF-8, repeated percent-decoding
+and base64 inside base64. The engine still blocks these (it assumes any
+downstream decoding), and the report counts them as over-blocks.
 
 ## Containment
 

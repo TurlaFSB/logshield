@@ -89,6 +89,7 @@ func Markdown(rs []Result, s Summary, meta map[string]string) string {
 	fmt.Fprintf(&b, "| Log4j attempted a JNDI lookup (ground truth) | %d |\n", s.Triggered)
 	fmt.Fprintf(&b, "| ...of which the engine flagged malicious | %d |\n", s.Caught)
 	fmt.Fprintf(&b, "| Log4j resolved another lookup only | %d |\n", s.ByTruth[TruthLookupOnly])
+	fmt.Fprintf(&b, "| Log4j only rewrote text (defaults, escapes; harmless) | %d |\n", s.ByTruth[TruthRewriteOnly])
 	fmt.Fprintf(&b, "| Log4j left the text unchanged | %d |\n", s.ByTruth[TruthInert])
 	fmt.Fprintf(&b, "| No ground truth (indeterminate) | %d |\n", s.ByTruth[TruthUnknown])
 	fmt.Fprintf(&b, "| Attack-class entries blocked although Log4j ignored them (over-blocks) | %d |\n", s.OverBlocked)

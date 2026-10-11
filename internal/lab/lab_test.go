@@ -272,3 +272,31 @@ func TestReportListsOverBlocksAndLookups(t *testing.T) {
 		}
 	}
 }
+
+func TestTruthOfSeparatesLookupsFromRewrites(t *testing.T) {
+	reply := func(raw string) Response {
+		return Response{Status: 200, Canary: &CanaryReply{Items: []Item{{Source: "x", Raw: raw, Rendered: "changed", Changed: true}}}}
+	}
+	tests := []struct {
+		raw  string
+		want Truth
+	}{
+		{"q=${env:HOME}", TruthLookupOnly},
+		{"${SYS:user.name}", TruthLookupOnly},
+		{"${${lower:e}nv:HOME}", TruthLookupOnly},
+		{"x ${var:-default} y", TruthRewriteOnly},
+		{"id = $${escaped}", TruthRewriteOnly},
+		{"${::-j}", TruthRewriteOnly},
+	}
+	for _, tc := range tests {
+		if got, _ := TruthOf(reply(tc.raw), nil); got != tc.want {
+			t.Errorf("%q: got %s want %s", tc.raw, got, tc.want)
+		}
+	}
+	// A JNDI attempt outranks everything else in the same reply.
+	r := reply("${env:HOME}")
+	r.Canary.Items = append(r.Canary.Items, Item{Source: "y", Raw: "z", Rendered: "z", JNDI: []string{"ldap://e/a"}})
+	if got, _ := TruthOf(r, nil); got != TruthTriggered {
+		t.Errorf("got %s", got)
+	}
+}

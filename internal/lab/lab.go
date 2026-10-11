@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -38,6 +39,9 @@ const (
 	// TruthLookupOnly: Log4j resolved some other lookup (for example ${java:version})
 	// but attempted no JNDI lookup.
 	TruthLookupOnly Truth = "lookup-only"
+	// TruthRewriteOnly: Log4j only rewrote text (a default such as ${x:-d}, or a
+	// $${ escape) without running a named lookup. Harmless.
+	TruthRewriteOnly Truth = "rewrite-only"
 	// TruthInert: Log4j logged the text unchanged.
 	TruthInert Truth = "inert"
 	// TruthUnknown: the canary did not give a usable answer (rejected the
@@ -176,25 +180,39 @@ func Send(ctx context.Context, addr string, raw []byte, timeout time.Duration) (
 	return out, nil
 }
 
+// resolverRe matches a named Log4j 2.14.1 lookup in the original text. It is a
+// heuristic for reporting: a lookup whose name is itself built by nested
+// lookups (for example ${${lower:e}nv:HOME}) still contains ${lower: and is
+// counted. The pass/fail rules do not depend on it.
+var resolverRe = regexp.MustCompile(`(?i)\$\{\s*(ctx|date|docker|env|event|java|jvmrunargs|k8s|log4j|lower|main|map|marker|bundle|sd|spring|sys|upper|web):`)
+
 // TruthOf reads ground truth out of a canary reply.
 func TruthOf(r Response, err error) (Truth, []string) {
 	if err != nil || r.Canary == nil {
 		return TruthUnknown, nil
 	}
 	var jndi []string
-	changed := false
+	lookup, rewrite := false, false
 	for _, it := range r.Canary.Items {
 		if it.Error != "" {
 			return TruthUnknown, nil
 		}
 		jndi = append(jndi, it.JNDI...)
-		changed = changed || it.Changed
+		if it.Changed {
+			if resolverRe.MatchString(it.Raw) {
+				lookup = true
+			} else {
+				rewrite = true
+			}
+		}
 	}
 	switch {
 	case len(jndi) > 0:
 		return TruthTriggered, jndi
-	case changed:
+	case lookup:
 		return TruthLookupOnly, nil
+	case rewrite:
+		return TruthRewriteOnly, nil
 	default:
 		return TruthInert, nil
 	}
@@ -363,7 +381,7 @@ func runOne(ctx context.Context, e corpus.Entry, o Options) Result {
 		for _, j := range jndi {
 			r.JNDI = append(r.JNDI, engine.Defang(j, 200))
 		}
-		if r.Truth == TruthLookupOnly || r.Truth == TruthTriggered {
+		if r.Truth == TruthLookupOnly || r.Truth == TruthRewriteOnly || r.Truth == TruthTriggered {
 			r.Changes = ChangesOf(resp)
 		}
 		if o.ProxyAddr != "" {
