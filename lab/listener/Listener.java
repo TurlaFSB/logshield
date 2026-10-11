@@ -11,7 +11,8 @@
 //   GET  /events?after=N      -> {"events":[...],"last":M}
 //   POST /reset               -> clears events
 //
-// Environment: LISTEN_ADDR, TCP_PORTS (comma list), DNS_PORT, CONTROL_PORT.
+// Environment: LISTEN_ADDR, TCP_PORTS (comma list), DNS_PORT (0 or off disables;
+// a port that cannot be bound disables DNS with a message), CONTROL_PORT.
 // Ports below 1024 need root. Use only on an isolated lab network.
 import com.sun.net.httpserver.HttpServer;
 import java.io.ByteArrayOutputStream;
@@ -131,7 +132,15 @@ public class Listener {
     public static void main(String[] args) throws Exception {
         InetAddress addr = InetAddress.getByName(env("LISTEN_ADDR", "127.0.0.1"));
         for (String p : env("TCP_PORTS", "389,636,1099,900,1389").split(",")) tcp(addr, Integer.parseInt(p.trim()));
-        dns(addr, Integer.parseInt(env("DNS_PORT", "53")));
+        String dnsPort = env("DNS_PORT", "53");
+        if (!dnsPort.equals("0") && !dnsPort.equals("off")) {
+            // DNS is a convenience: a busy port (mDNS on many hosts) must not stop the TCP listener.
+            try {
+                dns(addr, Integer.parseInt(dnsPort));
+            } catch (Exception e) {
+                System.err.println("listener: DNS disabled, cannot bind " + dnsPort + ": " + e.getMessage());
+            }
+        }
 
         HttpServer http = HttpServer.create(new InetSocketAddress(addr, Integer.parseInt(env("CONTROL_PORT", "9001"))), 0);
         http.createContext("/health", ex -> reply(ex, 200, "ok\n"));
