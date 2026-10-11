@@ -48,8 +48,8 @@ the cost is visible.
 The corpora point at reserved names (`192.0.2.1`, `example.com`), so a real
 network listener would never see them. Instead the canary runs with
 `-Djava.naming.factory.url.pkgs=lab.jndi`. JNDI then resolves `ldap://`,
-`ldaps://`, `rmi://`, `dns://`, `iiop://` and `corbaname://` through recording
-stubs (`lab/canary/lab/jndi`) that note the exact name and refuse the lookup.
+`ldaps://`, `rmi://`, `dns://`, `iiop://`, `iiopname://`, `corba://` and `corbaname://`
+(every URL scheme the JDK 8 ships a factory for) through recording stubs (`lab/canary/lab/jndi`) that note the exact name and refuse the lookup.
 It is Log4j itself that parses the (possibly obfuscated) text and calls
 `InitialContext.lookup`; we only watch the call. No packet is ever sent.
 

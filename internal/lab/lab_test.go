@@ -240,3 +240,35 @@ func TestLookupOnlyPassedIsCountedNotFailed(t *testing.T) {
 		t.Fatalf("summary: %+v", s)
 	}
 }
+
+func TestChangesAreDefangedAndCapped(t *testing.T) {
+	var items []Item
+	for i := 0; i < 10; i++ {
+		items = append(items, Item{Source: "header:X", Raw: "${env:HOME}", Rendered: "/root", Changed: true})
+	}
+	items = append(items, Item{Source: "path", Raw: "/x", Rendered: "/x"})
+	got := ChangesOf(Response{Canary: &CanaryReply{Items: items}})
+	if len(got) != maxChanges {
+		t.Fatalf("want %d changes, got %d", maxChanges, len(got))
+	}
+	if strings.Contains(got[0].Raw, "${") {
+		t.Fatalf("not defanged: %q", got[0].Raw)
+	}
+	if ChangesOf(Response{}) != nil {
+		t.Fatal("no canary reply, no changes")
+	}
+}
+
+func TestReportListsOverBlocksAndLookups(t *testing.T) {
+	rs := []Result{
+		{ID: "ob-1", Dataset: "bypass", Class: "encoding", Truth: TruthInert, Engine: "malicious", Rules: []string{"LSH-1002"}, Proxy: ProxyBlocked},
+		{ID: "lk-1", Dataset: "bypass", Class: "data", Truth: TruthLookupOnly, Engine: "suspicious", Rules: []string{"LSH-2002"}, Proxy: ProxyPassed,
+			Changes: []Change{{Source: "header:X", Raw: "$%7Benv:HOME}", Rendered: "/root"}}},
+	}
+	md := Markdown(rs, Summarize(rs), nil)
+	for _, want := range []string{"## Over-blocks", "ob-1", "## Non-JNDI lookups", "lk-1", "/root"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("report lacks %q:\n%s", want, md)
+		}
+	}
+}

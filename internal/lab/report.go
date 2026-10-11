@@ -113,6 +113,47 @@ func Markdown(rs []Result, s Summary, meta map[string]string) string {
 				md(strings.Join(r.JNDI, " ; ")), md(r.Err))
 		}
 	}
+
+	// Informational listings, so a reviewer sees the evidence and not only counts.
+	var over, looks []Result
+	for _, r := range rs {
+		benign := r.Dataset == "benign" || r.Dataset == "generated"
+		if !benign && r.Truth != TruthTriggered && r.Engine == "malicious" {
+			over = append(over, r)
+		}
+		if r.Truth == TruthLookupOnly && r.Proxy == ProxyPassed {
+			looks = append(looks, r)
+		}
+	}
+	const capRows = 120
+	if len(over) > 0 {
+		b.WriteString("\n## Over-blocks (information)\n\nAttack-class entries the engine blocks although Log4j ignored them.\n\n| ID | Class | Truth | Rules | Proxy |\n|---|---|---|---|---|\n")
+		for i, r := range over {
+			if i == capRows {
+				fmt.Fprintf(&b, "| ... %d more in results.json | | | | |\n", len(over)-capRows)
+				break
+			}
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", r.ID, r.Class, r.Truth, strings.Join(r.Rules, ","), r.Proxy)
+		}
+	}
+	if len(looks) > 0 {
+		// Attack datasets first: they are the interesting ones.
+		sort.SliceStable(looks, func(i, j int) bool {
+			return (looks[i].Dataset == "bypass") && (looks[j].Dataset != "bypass")
+		})
+		b.WriteString("\n## Non-JNDI lookups Log4j resolved and the proxy forwarded (information)\n\n| ID | Dataset | Engine | Rules | What Log4j changed |\n|---|---|---|---|---|\n")
+		for i, r := range looks {
+			if i == capRows {
+				fmt.Fprintf(&b, "| ... %d more in results.json | | | | |\n", len(looks)-capRows)
+				break
+			}
+			var ch []string
+			for _, c := range r.Changes {
+				ch = append(ch, fmt.Sprintf("%s: `%s` to `%s`", c.Source, c.Raw, c.Rendered))
+			}
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", r.ID, r.Dataset, r.Engine, strings.Join(r.Rules, ","), md(strings.Join(ch, "; ")))
+		}
+	}
 	return b.String()
 }
 

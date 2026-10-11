@@ -200,6 +200,38 @@ func TruthOf(r Response, err error) (Truth, []string) {
 	}
 }
 
+// Change is one value Log4j rewrote, kept (defanged) so a reviewer can see
+// what a lookup-only or triggering request actually did.
+type Change struct {
+	Source   string `json:"source"`
+	Raw      string `json:"raw"`
+	Rendered string `json:"rendered"`
+}
+
+const (
+	maxChanges    = 4
+	maxChangeText = 160
+)
+
+// ChangesOf lists up to maxChanges values that Log4j rewrote, defanged.
+func ChangesOf(r Response) []Change {
+	if r.Canary == nil {
+		return nil
+	}
+	out := make([]Change, 0, maxChanges)
+	for _, it := range r.Canary.Items {
+		if !it.Changed || len(out) == maxChanges {
+			continue
+		}
+		out = append(out, Change{
+			Source:   it.Source,
+			Raw:      engine.Defang(it.Raw, maxChangeText),
+			Rendered: engine.Defang(it.Rendered, maxChangeText),
+		})
+	}
+	return out
+}
+
 // Result is the comparison for one corpus entry.
 type Result struct {
 	ID      string   `json:"id"`
@@ -210,8 +242,10 @@ type Result struct {
 	Rules   []string `json:"rules,omitempty"`
 	Truth   Truth    `json:"truth"`
 	// JNDI lists the lookups Log4j attempted, defanged.
-	JNDI  []string `json:"jndi,omitempty"`
-	Proxy string   `json:"proxy"`
+	JNDI []string `json:"jndi,omitempty"`
+	// Changes shows what Log4j rewrote (lookup-only and triggering requests).
+	Changes []Change `json:"changes,omitempty"`
+	Proxy   string   `json:"proxy"`
 	// ProxyTruth is what Log4j did with the request after it passed through the
 	// proxy (only set when it passed).
 	ProxyTruth  Truth    `json:"proxy_truth,omitempty"`
@@ -328,6 +362,9 @@ func runOne(ctx context.Context, e corpus.Entry, o Options) Result {
 		}
 		for _, j := range jndi {
 			r.JNDI = append(r.JNDI, engine.Defang(j, 200))
+		}
+		if r.Truth == TruthLookupOnly || r.Truth == TruthTriggered {
+			r.Changes = ChangesOf(resp)
 		}
 		if o.ProxyAddr != "" {
 			presp, perr := Send(ctx, o.ProxyAddr, raw, o.Timeout)
