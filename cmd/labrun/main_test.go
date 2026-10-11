@@ -18,10 +18,10 @@ const (
 	benign = `{"id":"b1","class":"user-agent","source":{"type":"project","ref":"t"},"request":{"method":"GET","target":"/","headers":[["Host","h"],["User-Agent","curl/8"]]},"expect":{"decision":"clean"}}`
 )
 
-func corpusDir(t *testing.T, bypass, benignLine string) string {
+func corpusDir(t *testing.T, bypass string) string {
 	t.Helper()
 	d := t.TempDir()
-	for name, line := range map[string]string{"bypass": bypass, "benign": benignLine} {
+	for name, line := range map[string]string{"bypass": bypass, "benign": benign} {
 		if err := os.MkdirAll(filepath.Join(d, name), 0o750); err != nil {
 			t.Fatal(err)
 		}
@@ -48,7 +48,7 @@ func canary(t *testing.T, triggers bool) string {
 func TestRun(t *testing.T) {
 	out := t.TempDir()
 	var so, se bytes.Buffer
-	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, attack, benign), "-out", out, "-label", "unit"}, &so, &se)
+	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, attack), "-out", out, "-label", "unit"}, &so, &se)
 	if code != 0 || !strings.Contains(so.String(), "PASS") {
 		t.Fatalf("code %d\nstdout: %s\nstderr: %s", code, so.String(), se.String())
 	}
@@ -67,7 +67,7 @@ func TestRunFailsOnExpectationDrift(t *testing.T) {
 	// The corpus claims the engine says clean, but it says malicious.
 	drift := strings.Replace(attack, `"decision":"malicious","rules":["LSH-1001"]`, `"decision":"clean"`, 1)
 	var so, se bytes.Buffer
-	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, drift, benign), "-out", t.TempDir()}, &so, &se)
+	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, drift), "-out", t.TempDir()}, &so, &se)
 	if code != 1 || !strings.Contains(so.String(), "FAIL") {
 		t.Fatalf("want exit 1, got %d: %s", code, so.String())
 	}
@@ -81,7 +81,7 @@ func TestRunUsageErrors(t *testing.T) {
 	if c := run([]string{"-corpus", t.TempDir()}, &so, &se); c != 2 {
 		t.Errorf("empty corpus: %d", c)
 	}
-	if c := run([]string{"-canary", "127.0.0.1:1", "-corpus", corpusDir(t, attack, benign), "-out", t.TempDir()}, &so, &se); c != 2 {
+	if c := run([]string{"-canary", "127.0.0.1:1", "-corpus", corpusDir(t, attack), "-out", t.TempDir()}, &so, &se); c != 2 {
 		t.Errorf("dead canary must stop before sending: %d", c)
 	}
 	so.Reset()
@@ -93,7 +93,7 @@ func TestRunUsageErrors(t *testing.T) {
 func TestRunWithGeneratedBenign(t *testing.T) {
 	// Generated traffic may name real sites; it must not trip corpus validation.
 	var so, se bytes.Buffer
-	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, attack, benign), "-out", t.TempDir(), "-generated", "300"}, &so, &se)
+	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, attack), "-out", t.TempDir(), "-generated", "300"}, &so, &se)
 	if code != 0 || !strings.Contains(so.String(), "entries=302") {
 		t.Fatalf("code %d\nstdout: %s\nstderr: %s", code, so.String(), se.String())
 	}

