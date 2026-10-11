@@ -73,6 +73,23 @@ name for the same request.
 | `lab/setup.sh`, `lab/run.sh` | Run on the **VM**: verify, compile, start, `faithful`, `run`, stop |
 | `internal/lab`, `cmd/labrun` | Request builder, classification, report (unit-tested with fakes and the real proxy) |
 
+## Prerequisites on the VM
+
+- **Loopback must be reachable.** Metasploitable 3's iptables INPUT chain ends in
+  `DROP` with no rule for the loopback interface, so connections from
+  `127.0.0.1` to the lab's own listeners time out. Allow loopback only, and
+  remove the rule afterwards:
+
+  ```sh
+  sudo iptables -I INPUT 1 -i lo -j ACCEPT
+  # when finished
+  sudo iptables -D INPUT -i lo -j ACCEPT
+  ```
+
+  This opens nothing to the network. It is not persisted across reboots unless
+  the VM saves its rules.
+- About 400 MB of free RAM (two JVMs capped at 128 MB, plus LogShield).
+
 ## Running it
 
 On the host (any OS with Python 3, and Go if you want fresh binaries):

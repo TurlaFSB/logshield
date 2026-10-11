@@ -48,6 +48,8 @@ waitfor() { # url, seconds
 fail_start() { # component
   echo "run: $1 failed to start. Last lines of run/$1.log:" >&2
   tail -n 15 "$RUN/$1.log" >&2 || true
+  echo "run: if the process is up but connections to 127.0.0.1 time out, a firewall is dropping loopback traffic (Metasploitable 3 does)." >&2
+  echo "run: check with:  sudo iptables -S INPUT   and allow loopback only:  sudo iptables -I INPUT 1 -i lo -j ACCEPT" >&2
   cmd_stop >/dev/null 2>&1 || true
   exit 1
 }
