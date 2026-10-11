@@ -57,12 +57,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		entries = append(entries, es...)
 	}
-	if *generated > 0 {
-		entries = append(entries, corpus.Generate(*generated, 20211209)...)
-	}
+	// Only the hand-written corpora must be inert: generated benign traffic is
+	// plain requests, some of which name real sites, and is never validated.
 	if probs := corpus.Validate(entries); len(probs) > 0 {
 		say(stderr, "labrun: corpus invalid: %v\n", probs[0])
 		return 2
+	}
+	if *generated > 0 {
+		entries = append(entries, corpus.Generate(*generated, 20211209)...)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

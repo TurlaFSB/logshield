@@ -89,3 +89,12 @@ func TestRunUsageErrors(t *testing.T) {
 		t.Errorf("version: %d %q", c, so.String())
 	}
 }
+
+func TestRunWithGeneratedBenign(t *testing.T) {
+	// Generated traffic may name real sites; it must not trip corpus validation.
+	var so, se bytes.Buffer
+	code := run([]string{"-canary", canary(t, true), "-corpus", corpusDir(t, attack, benign), "-out", t.TempDir(), "-generated", "300"}, &so, &se)
+	if code != 0 || !strings.Contains(so.String(), "entries=302") {
+		t.Fatalf("code %d\nstdout: %s\nstderr: %s", code, so.String(), se.String())
+	}
+}
