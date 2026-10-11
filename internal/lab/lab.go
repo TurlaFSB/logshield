@@ -69,6 +69,8 @@ type Item struct {
 	Rendered string   `json:"rendered"`
 	Changed  bool     `json:"changed"`
 	JNDI     []string `json:"jndi"`
+	// Error is set by the canary when it could not observe Log4j for this value.
+	Error string `json:"error,omitempty"`
 }
 
 // CanaryReply is the canary's JSON response.
@@ -177,6 +179,9 @@ func TruthOf(r Response, err error) (Truth, []string) {
 	var jndi []string
 	changed := false
 	for _, it := range r.Canary.Items {
+		if it.Error != "" {
+			return TruthUnknown, nil
+		}
 		jndi = append(jndi, it.JNDI...)
 		changed = changed || it.Changed
 	}

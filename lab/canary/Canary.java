@@ -55,9 +55,20 @@ public final class Canary {
         appender = WriterAppender.newBuilder().setName("capture").setTarget(CAPTURE).setLayout(layout).build();
         appender.start();
         cfg.addAppender(appender);
+        // With no log4j2 configuration file the root logger defaults to ERROR,
+        // which would silently drop every info() call below.
+        cfg.getRootLogger().setLevel(Level.INFO);
         cfg.getRootLogger().addAppender(appender, Level.INFO, null);
         ctx.updateLoggers();
         log = LogManager.getLogger("canary");
+
+        // Refuse to run if the capture does not work: a broken oracle must
+        // never look like "Log4j ignored everything".
+        String probe = render("canary-selftest", new ArrayList<>());
+        if (!probe.equals("canary-selftest")) {
+            System.err.println("canary: self-test failed, Log4j captured [" + probe + "]");
+            System.exit(1);
+        }
 
         HttpServer srv = HttpServer.create(new InetSocketAddress(addr, Integer.parseInt(portS)), 128);
         srv.setExecutor(Executors.newFixedThreadPool(8));
@@ -92,6 +103,9 @@ public final class Canary {
         for (String[] it : items) {
             List<String> jndi = new ArrayList<>();
             String rendered = render(it[1], jndi);
+            // Text without "${" must come back unchanged; empty output means nothing was
+            // captured. (Text with "${" may legitimately render empty, e.g. "${::-}".)
+            String err = (rendered.isEmpty() && !it[1].isEmpty() && !it[1].contains("${")) ? "empty-capture" : null;
             if (!first) out.append(',');
             first = false;
             out.append("{\"source\":").append(js(it[0]))
@@ -103,7 +117,9 @@ public final class Canary {
                 if (k > 0) out.append(',');
                 out.append(js(jndi.get(k)));
             }
-            out.append("]}");
+            out.append("]");
+            if (err != null) out.append(",\"error\":").append(js(err));
+            out.append("}");
         }
         out.append("]}");
         byte[] resp = out.toString().getBytes(StandardCharsets.UTF_8);
