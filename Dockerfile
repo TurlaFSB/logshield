@@ -8,8 +8,9 @@
 #   docker buildx build -f Dockerfile --platform linux/amd64,linux/arm64 dist
 #
 # The base image is distroless "static": no shell, no package manager, no libc,
-# runs as an unprivileged user. Dependabot keeps the base current.
-FROM gcr.io/distroless/static-debian12:nonroot
+# runs as an unprivileged user. It is pinned by digest; Dependabot proposes
+# updates to the digest.
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 
 ARG TARGETARCH
 COPY --chmod=0555 image/${TARGETARCH}/logshield /usr/local/bin/logshield
