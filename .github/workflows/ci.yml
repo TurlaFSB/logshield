@@ -53,20 +53,12 @@ jobs:
           echo "$ACTIONLINT_SHA256  /tmp/actionlint.tgz" | sha256sum --check
           tar -xzf /tmp/actionlint.tgz -C /tmp actionlint
           /tmp/actionlint .github/workflows/*.yml
-      - name: Sigma and Prometheus examples parse
-        run: |
-          python3 - <<'PY'
-          import glob, yaml
-          from sigma.collection import SigmaCollection
-          for f in sorted(glob.glob("examples/sigma/*.yml")):
-              rules = SigmaCollection.from_yaml(open(f).read()).rules
-              assert rules and not [e for r in rules for e in r.errors], f
-          yaml.safe_load(open("examples/prometheus/logshield.rules.yml"))
-          PY
+      - name: Sigma and Prometheus examples are well formed
+        run: python3 scripts/check-sigma.py
       - name: ruff
         run: |
-          ruff check lab
-          ruff format --check lab
+          ruff check lab scripts/check-sigma.py
+          ruff format --check lab scripts/check-sigma.py
 
   image:
     name: Container image builds and runs unprivileged

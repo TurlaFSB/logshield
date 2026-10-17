@@ -13,7 +13,7 @@ First release candidate. Pin a verified release, run in monitor mode first, and 
 ### Added
 - OT/ICS guide (`docs/ot-ics.md`).
 - Final threat model: trust boundaries, attacks on LogShield itself, what the evidence does and does not show, operator responsibilities.
-- Prometheus alerting rules and Sigma rules over the JSON logs (`examples/prometheus`, `examples/sigma`), validated in CI.
+- Prometheus alerting rules and Sigma rules over the JSON logs (`examples/prometheus`, `examples/sigma`), checked in CI by `scripts/check-sigma.py` (PyYAML only).
 - `make lab-scripts`: smoke test of the lab control script with a fake JDK and the real proxy, run in CI.
 - Release engineering: reproducible release archives (`scripts/build-release.sh`), a tag-triggered release workflow with keyless cosign signatures, build provenance attestations and SPDX SBOM, a distroless non-root container image, OpenSSF Scorecard, Dependabot for Docker, `docs/releasing.md` (versioning policy and verification) and `docs/deployment.md` with hardened systemd, Kubernetes and nginx examples.
 - Docs-consistency tests (rules and configuration keys must be documented), version information from Go build metadata, `CITATION.cff`, `scripts/repo-settings.sh`, and CI for shell, Python and workflow files.
