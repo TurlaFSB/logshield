@@ -69,8 +69,8 @@ rather than by tag.
 
 ## Cutting a release (maintainers)
 
-1. `main` is green. Run `scripts/repo-settings.sh --protect` once, before the first release, so `main` requires pull requests and passing checks.
-2. Move the `[Unreleased]` entries in `CHANGELOG.md` under a new `## [x.y.z] - date` heading.
-3. Tag the merge commit and push the tag: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`. Use a suffix such as `-rc.1` for a pre-release (no `latest` image tag, marked as a pre-release).
+1. `main` is green and protected: every change, including the release notes, goes through a pull request (`scripts/repo-settings.sh --protect` recreates the ruleset).
+2. In a pull request, move the `[Unreleased]` entries in `CHANGELOG.md` under a new `## [x.y.z] - date` heading, and squash-merge it. GitHub signs the merge commit.
+3. Pull `main`, then create a **signed** tag on that merge commit and push it: `git tag -s vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`. Use a suffix such as `-rc.1` for a pre-release (no `latest` image tag, marked as a pre-release). The workflow refuses tags that are not on `main`.
 4. The workflow tests, builds, signs, attests, pushes the image and creates the GitHub release. If anything fails nothing is published half-way: re-run the workflow, or delete the tag and the draft artifacts and start again.
 5. Verify the release with the commands above before announcing it.

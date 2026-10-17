@@ -15,12 +15,29 @@ what Log4j would see in each request, and blocks exploit attempts before they
 reach the host. It is a **compensating control**, not a fix: patch, remove
 `JndiLookup`, or retire the host as soon as you can.
 
-> **Status: pre-release.** The inspection engine and the proxy (HTTP/1.1, HTTPS and HTTP/2,
-> metrics, health checks, configuration) are heavily tested, and the detection corpus has
-> been validated in a lab against real Log4j 2.14.1 (107 of 107 JNDI attempts caught, 0
-> misses, 0 false positives; see [the lab report](docs/lab-report.md)). There is no tagged
-> release yet, so pin a commit and test in monitor mode before relying on it. See the
-> [roadmap](docs/ROADMAP.md).
+> **Status: v0.1.0, first stable release.** The inspection engine and the proxy
+> (HTTP/1.1, HTTPS and HTTP/2, metrics, health checks, configuration) are heavily
+> tested, and the detection corpus was validated in a lab against real Log4j 2.14.1
+> (107 of 107 JNDI attempts caught, 0 misses, 0 false positives; see
+> [the lab report](docs/lab-report.md)). Releases are signed, reproducible and
+> carry build provenance and an SBOM ([verify them](docs/releasing.md)). Below 1.0
+> the public surface may still change in a minor release, always noted in the
+> [changelog](CHANGELOG.md). Start in monitor mode before relying on it.
+
+## What it does not do
+
+Read this before deploying. LogShield is a compensating control for one attack
+class, not a substitute for patching.
+
+- It protects only traffic that **crosses the proxy**. Other ports, other
+  protocols (syslog, SMTP, LDAP, message queues) and internal pivots need network
+  segmentation.
+- It cannot see **second-order injection**: data stored earlier and logged later
+  by another component.
+- Any signature-style control can miss an **encoding it does not model**. The
+  [threat model](docs/threat-model.md) lists the known gaps.
+- A fresh install is in **monitor mode**: it records and counts, it does not
+  block, until you switch to `-mode block` ([why](docs/assurance.md#cisa-secure-by-design)).
 
 ## Why a proxy, and why not just a regex
 
@@ -43,6 +60,25 @@ multipart parts, and Basic or Bearer credentials. LogShield therefore:
    looks like.
 
 The proxy then guarantees that **what it forwards is exactly what it inspected**.
+
+## Install
+
+Pick one. Every release is signed and attested; the
+[verification commands](docs/releasing.md#verifying-a-download) take a minute.
+
+```sh
+# Container: distroless, non-root, multi-arch. Pin the digest in production.
+docker run --rm -p 8080:8080 \
+  -e LOGSHIELD_UPSTREAM=http://192.0.2.10:8081 \
+  ghcr.io/turlafsb/logshield:v0.1.0
+
+# Static binary (Linux, macOS, Windows; amd64 and arm64): download from the
+# Releases page, then
+tar xzf logshield_v0.1.0_linux_amd64.tar.gz
+./logshield_v0.1.0_linux_amd64/logshield -version
+```
+
+Or build from source (Go 1.24 or newer), as below.
 
 ## Quick start
 
@@ -205,6 +241,7 @@ test against systems you do not own or have written authorization to test.
 | Load and latency report | [docs/load-report.md](docs/load-report.md) |
 | Metrics, health checks, overload, Prometheus and Sigma rules | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |
+| Project governance, security policy, support | [GOVERNANCE.md](GOVERNANCE.md), [SECURITY.md](SECURITY.md), [SUPPORT.md](SUPPORT.md) |
 
 ## Development
 
@@ -222,6 +259,11 @@ make vuln         # govulncheck
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md) and [GOVERNANCE.md](GOVERNANCE.md).
+
+## Citing
+
+If you use LogShield in research, cite it with the metadata in
+[CITATION.cff](CITATION.cff) (GitHub shows a "Cite this repository" button).
 
 ## Security
 
