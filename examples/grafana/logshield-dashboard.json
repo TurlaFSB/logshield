@@ -394,8 +394,7 @@
           },
           "color": {
             "mode": "thresholds"
-          },
-          "decimals": 3
+          }
         },
         "overrides": []
       },
@@ -1099,7 +1098,7 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
