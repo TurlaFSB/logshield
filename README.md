@@ -24,6 +24,79 @@ reach the host. It is a **compensating control**, not a fix: patch, remove
 > the public surface may still change in a minor release, always noted in the
 > [changelog](CHANGELOG.md). Start in monitor mode before relying on it.
 
+## At a glance
+
+Say you run an old web application, such as a plant's reporting dashboard, that
+uses a vulnerable Log4j. The vendor cannot patch it until next year, or the server
+is too old to upgrade. An attacker who sends a request containing something like
+`${jndi:ldap://...}` can make that application reach out and run what comes back.
+
+LogShield is a gatekeeper you put **in front of** that application:
+
+```mermaid
+flowchart LR
+    A[Clients and attackers] --> L[LogShield<br/>inspects every request]
+    L -- clean --> V[Your vulnerable application]
+    L -- attack --> X[403, logged and counted<br/>never reaches the application]
+```
+
+Every request passes through LogShield first. It works out what Log4j would make
+of each part of the request, including the disguised forms, and refuses the ones
+that would trigger a lookup. Everything else goes through unchanged. You change
+the network path, not the vendor's software.
+
+**Who it is for:** teams that run Java applications they cannot patch yet,
+especially in operational technology (OT/ICS) and other legacy environments, and
+security engineers who need a documented compensating control for them.
+
+**How you use it:**
+
+1. [Install it](#install) (one container or one static binary) and give it the
+   address of the application it protects.
+2. Make the application reachable **only** through LogShield: bind it to
+   localhost, or firewall it so only LogShield can reach it. This is the step that
+   makes the protection real.
+3. Run in **monitor mode** for a few days. It records what it would block and
+   blocks nothing, so you can check it against your real traffic.
+4. Switch to **block mode**. Attack requests now get a `403` and never reach the
+   application.
+5. Watch the [metrics and logs](docs/observability.md), and keep a plan to patch
+   or retire the application, because this is a stopgap.
+
+A longer walk-through, with deployment patterns for systemd, Kubernetes and nginx,
+is in [docs/deployment.md](docs/deployment.md).
+
+## Common questions
+
+**Does it replace patching?** No. It is a compensating control for one attack
+class. Patch Log4j (2.17.1 or later), remove the `JndiLookup` class, or retire the
+host as soon as you can.
+
+**Does it slow my application down?** In the load test it added about 0.7 ms at
+the 99th percentile for a single client on a small machine
+([load report](docs/load-report.md)). Measure it on your own traffic.
+
+**What if LogShield goes down?** It sits in the request path, so a single instance
+is a single point of failure. Run it under a supervisor (systemd or Kubernetes
+restart policies), use the health endpoints, and run more than one instance where
+availability matters. What it does when inspection itself fails is a setting you
+choose: `on_error: closed` (refuse) or `open` (forward, counted in a metric).
+
+**Does it work with HTTPS?** Yes. It can terminate TLS itself (HTTP/2 included) or
+sit behind a TLS terminator such as nginx. Traffic it cannot decrypt cannot be
+inspected.
+
+**Which Log4j versions was it tested against?** The lab validation used Log4j
+2.14.1 on OpenJDK 8. Other versions and JDKs are not covered by that result; see
+the [limits](docs/lab.md).
+
+**Is it a general web application firewall?** No. It looks for Log4Shell-class
+payloads only, and it does not replace a WAF.
+
+**I found a bypass.** Please report it privately, as described in
+[SECURITY.md](SECURITY.md). Confirmed bypasses become regression tests and are
+credited.
+
 ## What it does not do
 
 Read this before deploying. LogShield is a compensating control for one attack
