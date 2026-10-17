@@ -22,6 +22,7 @@ LDFLAGS="-s -w -X $PKG/internal/version.Version=$VERSION -X $PKG/internal/versio
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
+go version | cut -d" " -f3 >"$OUT/GO_VERSION"
 
 for platform in $PLATFORMS; do
 	os="${platform%/*}"

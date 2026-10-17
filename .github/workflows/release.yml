@@ -147,6 +147,8 @@ jobs:
             echo
             echo "Image: \`${IMAGE}@${DIGEST}\`"
             echo
+            echo "Built with $(cat dist/GO_VERSION). Reproduce the archives with the same Go version: \`scripts/build-release.sh ${v}\`."
+            echo
             echo "Verify: see docs/releasing.md."
           } >"$notes"
           # shellcheck disable=SC2086

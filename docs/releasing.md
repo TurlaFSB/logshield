@@ -29,7 +29,7 @@ and nothing else:
 | Build provenance attestation | SLSA-style provenance for every archive, from GitHub's attestation service |
 | `ghcr.io/turlafsb/logshield:<version>` | Distroless, non-root, multi-arch image, signed, with provenance and SBOM attached |
 
-The archives are reproducible: the same commit and the same Go toolchain give
+The archives are reproducible: the same commit and the same Go toolchain (the version is stated in each release's notes) give
 byte-identical files (`make release-dry-run` twice and compare `dist/SHA256SUMS`;
 CI does this on every change).
 
