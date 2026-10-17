@@ -1,0 +1,56 @@
+# One-command demo: LogShield in front of a web server, with Prometheus,
+# Grafana and a generator that sends normal and attack-shaped requests.
+#
+#   docker compose up
+#   open http://127.0.0.1:3000   (Dashboards > LogShield)
+#
+# Everything listens on 127.0.0.1 only. The attack payloads point at reserved
+# ".invalid" names and the "upstream" is a plain nginx page, so there is nothing
+# vulnerable here and nothing can connect out. This is a demo, not a deployment
+# recipe: for real use pin images by digest (docs/deployment.md).
+name: logshield-demo
+
+services:
+  upstream:
+    image: nginx:1.27-alpine
+
+  logshield:
+    image: ghcr.io/turlafsb/logshield:v0.1.0
+    environment:
+      LOGSHIELD_UPSTREAM: http://upstream:80
+      LOGSHIELD_MODE: block              # use "monitor" to watch the "would be blocked" panel instead
+      LOGSHIELD_ADMIN_LISTEN: 0.0.0.0:9090
+    ports:
+      - "127.0.0.1:8080:8080"            # the protected entry point: try curl here yourself
+    depends_on: [upstream]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=2h"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on: [logshield]
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: dark
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/logshield-dashboard.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../logshield-dashboard.json:/var/lib/grafana/dashboards/logshield-dashboard.json:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [prometheus]
+
+  traffic:
+    image: curlimages/curl:8.11.0
+    entrypoint: ["/bin/sh", "/traffic.sh"]
+    environment:
+      TARGET: http://logshield:8080
+    volumes:
+      - ./traffic.sh:/traffic.sh:ro
+    depends_on: [logshield]

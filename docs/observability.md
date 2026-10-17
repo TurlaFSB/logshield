@@ -62,6 +62,9 @@ suspicious or would-block request that was forwarded), `request failed`, or
 | `detections` | Up to 8 findings, each with `rule`, `severity`, `location`, `scheme`, `evidence` and `decoded_via` (the decoding layers that revealed it). |
 | `detections_omitted` | How many further findings were not listed. |
 
+A ready-made Grafana dashboard, and a one-command demo that fills it with traffic,
+are in [examples/grafana](../examples/grafana/README.md).
+
 Suggested alerts:
 
 - `increase(logshield_inspection_errors_total[5m]) > 0` (a bug; report it).

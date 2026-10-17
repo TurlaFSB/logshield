@@ -367,6 +367,7 @@ test against systems you do not own or have written authorization to test.
 | Assurance: Scorecard, Best Practices, SLSA and SSDF self-assessment | [docs/assurance.md](docs/assurance.md) |
 | Load and latency report | [docs/load-report.md](docs/load-report.md) |
 | Metrics, health checks, overload, Prometheus and Sigma rules | [docs/observability.md](docs/observability.md) |
+| Grafana dashboard and a one-command demo | [examples/grafana](examples/grafana/README.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |
 | Project governance, security policy, support | [GOVERNANCE.md](GOVERNANCE.md), [SECURITY.md](SECURITY.md), [SUPPORT.md](SUPPORT.md) |
 
