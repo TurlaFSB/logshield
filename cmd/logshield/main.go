@@ -49,8 +49,15 @@ const shutdownTimeout = 15 * time.Second
 // ready, if not nil, is called with the listening address once the proxy is
 // accepting connections.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready func(addr string)) int {
+	if len(args) > 0 && args[0] == "check" {
+		return runCheck(args[1:], os.Stdin, stdout, stderr)
+	}
 	fs := flag.NewFlagSet("logshield", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		_, _ = fmt.Fprint(stderr, "usage: logshield -upstream URL [flags]\n       logshield check [flags] PAYLOAD   (explain what the engine thinks of one payload)\n\nFlags:\n")
+		fs.PrintDefaults()
+	}
 	d := config.Defaults()
 	var (
 		showVersion = fs.Bool("version", false, "print version information and exit")
