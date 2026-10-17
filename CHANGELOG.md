@@ -12,6 +12,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 - CISA secure-by-design mapping in `docs/assurance.md`, including why monitor mode is the default.
 
 ### Changed
+- README: v0.1.0 status, install section (container and release archive), a "What it does not do" section, governance and citation links. `docs/releasing.md` describes the signed-tag, pull-request release flow.
 - The startup message that says monitor mode does not block is now a warning, so it shows at `-log-level warn`.
 - `SECURITY.md` supported-versions table; `docs/releasing.md` states that breaking changes may land in a minor release below 1.0.
 
