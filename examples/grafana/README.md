@@ -23,9 +23,13 @@ cd examples/grafana/demo
 docker compose up
 ```
 
-Open <http://127.0.0.1:3000>; the LogShield dashboard is the home page. Give it
+Open <http://127.0.0.1:3000>; the LogShield dashboard is the home page. LogShield
+itself is on `127.0.0.1:18080` if you want to send it requests with `curl`. Give it
 about a minute for the graphs to fill. Stop with `Ctrl+C`, then
 `docker compose down`.
+
+If a port is already in use on your machine (Docker reports "port is already
+allocated"), pick others: `LOGSHIELD_PORT=28080 GRAFANA_PORT=3001 docker compose up`.
 
 To try the monitor-mode workflow, set `LOGSHIELD_MODE: monitor` in
 `demo/docker-compose.yml`: the "Would be blocked / s" panel then shows what block

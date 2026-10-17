@@ -4,6 +4,9 @@
 #   docker compose up
 #   open http://127.0.0.1:3000   (Dashboards > LogShield)
 #
+# If a port is taken on your machine, pick others:
+#   LOGSHIELD_PORT=28080 GRAFANA_PORT=3001 docker compose up
+#
 # Everything listens on 127.0.0.1 only. The attack payloads point at reserved
 # ".invalid" names and the "upstream" is a plain nginx page, so there is nothing
 # vulnerable here and nothing can connect out. This is a demo, not a deployment
@@ -21,7 +24,7 @@ services:
       LOGSHIELD_MODE: block              # use "monitor" to watch the "would be blocked" panel instead
       LOGSHIELD_ADMIN_LISTEN: 0.0.0.0:9090
     ports:
-      - "127.0.0.1:8080:8080"            # the protected entry point: try curl here yourself
+      - "127.0.0.1:${LOGSHIELD_PORT:-18080}:8080"   # the protected entry point: try curl here yourself
     depends_on: [upstream]
 
   prometheus:
@@ -43,7 +46,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ../logshield-dashboard.json:/var/lib/grafana/dashboards/logshield-dashboard.json:ro
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
     depends_on: [prometheus]
 
   traffic:
