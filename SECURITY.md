@@ -5,9 +5,16 @@ Responsible reports are welcome and appreciated.
 
 ## Supported versions
 
-LogShield is pre-release. Only the latest release candidate or release, and the
-latest commit on `main`, are supported. After `v1.0.0`, the latest minor release
-line receives security fixes.
+| Version | Security fixes |
+|---|---|
+| Latest release (currently the 0.1 line) | Yes |
+| Older releases | No: upgrade to the latest release |
+| `main` | Best effort, the fix lands here first |
+
+LogShield is below 1.0, so the latest release is the only supported line. From
+`v1.0.0`, the latest minor release of the latest major line receives security
+fixes. Releases are signed and attested; see
+[docs/releasing.md](docs/releasing.md) to verify what you run.
 
 ## Reporting a vulnerability
 
@@ -53,6 +60,21 @@ Out of scope:
 
 This is a student-maintained project, so these are good-faith targets rather
 than contractual guarantees.
+
+## Advisories and CVE identifiers
+
+A confirmed vulnerability is published as a GitHub Security Advisory on this
+repository, with a CVE identifier requested through GitHub (a CNA) when the
+issue affects released versions. The advisory names the affected and fixed
+versions and credits the reporter. The fix is also recorded under **Security**
+in [CHANGELOG.md](CHANGELOG.md).
+
+## Good-faith research
+
+Testing LogShield on your own systems, or in a lab you control, is welcome. We
+will not pursue anyone who reports a vulnerability in good faith, stays within
+the scope above, avoids harming others' data or services, and gives us the
+chance to fix it before public disclosure.
 
 ## Disclosure
 

@@ -221,7 +221,7 @@ make eval         # regenerate the evaluation report
 make vuln         # govulncheck
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md) and [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Security
 

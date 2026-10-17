@@ -10,6 +10,11 @@ that the version number protects is:
 - rule IDs (`LSH-xxxx`) and their meaning (severity, mandatory or not);
 - the verdict semantics: what `malicious` and `suspicious` mean, and the HTTP behaviour of block, monitor and fail-closed.
 
+Below 1.0 the promise is weaker, on purpose: a breaking change to any of these
+may land in a **minor** release (`0.x`), always listed under **Changed** or
+**Removed** in the changelog, and never in a patch release. From `1.0.0` the
+rules below apply in full.
+
 A change that breaks any of these is a **major** release. New rules, new
 decodings, new settings and new metrics are **minor**. Detection can only get
 stricter within a major version, apart from false-positive fixes, which are
