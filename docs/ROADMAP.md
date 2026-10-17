@@ -34,7 +34,7 @@ These are goals to be confirmed by measurement, not claims.
 - [x] **3a. Lab design and tooling**: a Log4j 2.14.1 canary with a hermetic JNDI hook, a logging-only listener, the `labrun` differential runner, a verified host-side bundle, and [docs/lab.md](lab.md). The Windows target is dropped: the Ubuntu 14.04 VM has no Java, so the canary runs from a bundled JDK 8.
 - [x] **3b. Lab runs**: direct-to-Log4j baseline vs through LogShield, balanced and hardened profiles (see [lab.md](lab.md)). The egress-filter comparison was dropped: the oracle never sends traffic, and egress control is outside LogShield's scope.
 - [x] **3c. Differential validation**: label the corpus with ground truth from real vulnerable Log4j, compare against engine verdicts
-- [ ] **3d. Release engineering**: distroless non-root image, keyless signing, SBOM, build provenance, CodeQL, Scorecard, branch protection
+- [ ] **3d. Release engineering**: distroless non-root image, keyless signing, SBOM, build provenance, CodeQL, Scorecard, branch protection. Pipeline, image, Scorecard and CodeQL are in place; branch protection and the first signed tag are the remaining items.
 - [ ] **3e. Documentation**: threat model, limits, layered-defense argument, OT/ICS mapping, quickstart
 
 ## Step 4 (optional)

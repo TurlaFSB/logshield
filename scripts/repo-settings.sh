@@ -86,7 +86,7 @@ if [ "$PROTECT" -eq 1 ]; then
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "Lint" },
-          { "context": "Lab scripts (shellcheck, ruff)" },
+          { "context": "Scripts and workflows" },
           { "context": "Modules are tidy and verified" },
           { "context": "govulncheck" },
           { "context": "Proxy in front of real backends" },

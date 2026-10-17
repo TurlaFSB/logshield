@@ -90,4 +90,4 @@ docker run --rm -e LOGSHIELD_UPSTREAM=http://backend:8080 -e LOGSHIELD_LISTEN=0.
   -e LOGSHIELD_MODE=monitor -p 8080:8080 <image>
 ```
 
-(An official image is published with the first release; see [deployment](deployment.md).)
+(The official image is published with each release; see [deployment](deployment.md).)

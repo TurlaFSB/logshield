@@ -18,13 +18,20 @@ GOVULNCHECK_VERSION := v1.8.0
 FUZZTIME ?= 30s
 FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus proxy:FuzzNothingMaliciousLeaves
 
-.PHONY: help build test race cover cover-check fuzz bench eval integration load fmt vet lint vuln check
+.PHONY: help docker release-dry-run build test race cover cover-check fuzz bench eval integration load fmt vet lint vuln check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
 
 build: ## Build the logshield binary into ./bin
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/logshield ./cmd/logshield
+
+release-dry-run: ## Build all release archives and SHA256SUMS into ./dist (reproducible)
+	scripts/build-release.sh '$(VERSION)'
+
+docker: ## Build a local container image for this machine's architecture (needs Docker)
+	PLATFORMS="linux/$$(go env GOARCH)" scripts/build-release.sh '$(VERSION)'
+	docker buildx build -f Dockerfile --load -t logshield:$(VERSION) dist
 
 test: ## Run unit tests
 	go test ./...

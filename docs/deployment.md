@@ -24,7 +24,7 @@ terminator) and the application it protects, and make the application reachable
 
 - **systemd**: [examples/systemd/logshield.service](../examples/systemd/logshield.service). Runs as a dynamic unprivileged user with no capabilities, a read-only filesystem and a syscall filter; `systemd-analyze security` rates it 1.2 (OK). Binding a port below 1024 needs `AmbientCapabilities=CAP_NET_BIND_SERVICE` (and the same in `CapabilityBoundingSet=`), or listen on a high port and redirect.
 - **Kubernetes**: [examples/kubernetes/logshield.yaml](../examples/kubernetes/logshield.yaml): non-root, read-only root filesystem, all capabilities dropped, probes on the admin listener, and a NetworkPolicy that makes LogShield the only way in.
-- **Container**: the official image arrives with the first release ([roadmap](ROADMAP.md)).
+- **Container**: `ghcr.io/turlafsb/logshield`, distroless and non-root, published and signed with each release ([verification](releasing.md)). Pass the upstream as `LOGSHIELD_UPSTREAM`; the image listens on `0.0.0.0:8080`. Build one locally with `make docker`.
 
 ## Operating notes
 

@@ -32,7 +32,7 @@ jobs:
           version: v2.5.0
 
   scripts:
-    name: Lab scripts (shellcheck, ruff)
+    name: Scripts and workflows
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -43,11 +43,40 @@ jobs:
         run: shellcheck -S style lab/*.sh scripts/*.sh
       - name: POSIX syntax check
         run: for f in lab/*.sh scripts/*.sh; do sh -n "$f"; done
+      - name: actionlint
+        run: |
+          python3 -m pip install --quiet actionlint-py==1.7.12.*
+          actionlint .github/workflows/*.yml
       - name: ruff
         run: |
           python3 -m pip install --quiet ruff==0.16.8
           ruff check lab/bundle.py
           ruff format --check lab/bundle.py
+
+  image:
+    name: Container image builds and runs unprivileged
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: make docker VERSION=ci
+      - name: Runs as non-root and validates configuration
+        run: |
+          test "$(docker image inspect logshield:ci --format '{{.Config.User}}')" = "65532:65532"
+          docker run --rm --read-only --cap-drop ALL logshield:ci -version
+          docker run --rm --read-only --cap-drop ALL -e LOGSHIELD_UPSTREAM=http://backend:8080 logshield:ci -check-config
+      - name: Release archives are reproducible
+        run: |
+          PLATFORMS="linux/amd64" scripts/build-release.sh ci
+          cp dist/SHA256SUMS /tmp/first
+          PLATFORMS="linux/amd64" scripts/build-release.sh ci
+          diff /tmp/first dist/SHA256SUMS
 
   test:
     name: Test (${{ matrix.os }}, Go ${{ matrix.go }})

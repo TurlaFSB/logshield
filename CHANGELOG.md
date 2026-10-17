@@ -7,6 +7,8 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 ## [Unreleased]
 
 ### Added
+- Release engineering: reproducible release archives (`scripts/build-release.sh`), a tag-triggered release workflow with keyless cosign signatures, build provenance attestations and SPDX SBOM, a distroless non-root container image, OpenSSF Scorecard, Dependabot for Docker, `docs/releasing.md` (versioning policy and verification) and `docs/deployment.md` with hardened systemd, Kubernetes and nginx examples.
+- Docs-consistency tests (rules and configuration keys must be documented), version information from Go build metadata, `CITATION.cff`, `scripts/repo-settings.sh`, and CI for shell, Python and workflow files.
 - Hardened profile (`examples/logshield.hardened.json`: block mode plus `block_suspicious`), tested to load, and the measured cost and benefit of the stricter policy.
 - Lab for differential validation against real Log4j 2.14.1: canary with a hermetic JNDI hook, logging-only listener, `labrun`, a verifying bundle script (`lab/bundle.py`) and `docs/lab.md`.
 - Reverse proxy (`internal/proxy`, `cmd/logshield`): monitor and block modes,
