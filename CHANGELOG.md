@@ -6,6 +6,10 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-17
+
+First stable release. It is the 0.1.0-rc.1 candidate (below) plus the TLS change listed here, proven end to end by the release pipeline and by the lab (107 of 107 real Log4j JNDI lookups flagged, no miss, leak or false positive). Verify what you download as described in [docs/releasing.md](docs/releasing.md), run in monitor mode first, and read [docs/threat-model.md](docs/threat-model.md).
+
 ### Changed
 - TLS 1.2 now accepts only forward-secret AEAD cipher suites by default (ECDHE with AES-GCM or ChaCha20-Poly1305). CBC and SHA-1 suites are off. Old clients that need them can be served with `tls_legacy_ciphers` (`-tls-legacy-ciphers`).
 
