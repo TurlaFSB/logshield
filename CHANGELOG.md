@@ -13,6 +13,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 - CISA secure-by-design mapping in `docs/assurance.md`, including why monitor mode is the default.
 
 ### Changed
+- README: screenshots of `logshield check` runs from the lab, as a proof of concept.
 - README: a plain-language "At a glance" section (what it is, who it is for, how you use it) and common questions. Roadmap: measured results next to the targets, a corrected coverage floor, and an "After 0.1" list.
 - README: v0.1.0 status, install section (container and release archive), a "What it does not do" section, governance and citation links. `docs/releasing.md` describes the signed-tag, pull-request release flow.
 - The startup message that says monitor mode does not block is now a warning, so it shows at `-log-level warn`.

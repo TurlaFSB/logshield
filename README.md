@@ -226,6 +226,27 @@ payload sits, `-json` prints machine-readable output, `-` reads the payload from
 standard input, and `-disable-rule` and `-block-suspicious` mirror the proxy.
 Details: [docs/proxy.md](docs/proxy.md#explaining-a-verdict-logshield-check).
 
+#### Proof of concept
+
+Real runs of `logshield check` on a Kali Linux VM in the project's
+isolated lab. Every payload points at a reserved `.invalid` name, so nothing can
+connect anywhere.
+
+A plain JNDI lookup (exit code `4`), then the same attack hidden behind a nested
+`lower` lookup, which a search for the text `jndi` alone would miss:
+
+![logshield check on a plain and an obfuscated JNDI lookup: both malicious, rules LSH-1001 and LSH-1002](docs/images/check-plain-and-obfuscated.png)
+
+A percent-encoded payload in a query parameter. The engine decodes the layer a
+real web stack would and reports it was "revealed after decoding: percent":
+
+![logshield check on a percent-encoded payload in a query parameter: malicious, rule LSH-1002, revealed after decoding](docs/images/check-percent-encoded.png)
+
+JSON output for a script or a pipeline. A bare `env` lookup is only suspicious,
+so block mode would let it through and record it unless `-block-suspicious` is set:
+
+![logshield check -json on an env lookup: decision suspicious, would_block_in_block_mode false, rule LSH-2002](docs/images/check-json-suspicious.png)
+
 ### Options
 
 | Flag | Default | Meaning |
