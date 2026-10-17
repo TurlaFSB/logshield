@@ -60,8 +60,15 @@ security engineers who need a documented compensating control for them.
    blocks nothing, so you can check it against your real traffic.
 4. Switch to **block mode**. Attack requests now get a `403` and never reach the
    application.
-5. Watch the [metrics and logs](docs/observability.md), and keep a plan to patch
-   or retire the application, because this is a stopgap.
+5. Watch the [metrics and logs](docs/observability.md) (a ready-made
+   [Grafana dashboard](examples/grafana/README.md) is included), and keep a plan
+   to patch or retire the application, because this is a stopgap.
+
+**See it work in two minutes, with nothing to deploy:** run
+[`logshield check`](#try-a-payload-without-a-proxy) on a payload to see the
+verdict and why, or start the one-command
+[Grafana demo](examples/grafana/README.md) to watch blocked requests, detections
+by rule and latency on a live dashboard.
 
 A longer walk-through, with deployment patterns for systemd, Kubernetes and nginx,
 is in [docs/deployment.md](docs/deployment.md).
@@ -95,7 +102,8 @@ payloads only, and it does not replace a WAF.
 
 **I found a bypass.** Please report it privately, as described in
 [SECURITY.md](SECURITY.md). Confirmed bypasses become regression tests and are
-credited.
+credited. Want to try to find one? [docs/challenge.md](docs/challenge.md) says
+what counts and how to test an idea in five minutes.
 
 ## What it does not do
 

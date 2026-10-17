@@ -18,7 +18,7 @@ body:
     id: input
     attributes:
       label: Smallest input that reproduces it
-      description: Use inert values only (example.com, *.invalid, 192.0.2.0/24). Never include real hosts or secrets.
+      description: Use inert values only (example.com, *.invalid, 192.0.2.0/24). Never include real hosts or secrets. For a wrong verdict, the output of `logshield check` (or `logshield check -json`) for the payload is the best reproduction; its output is defanged, so it is safe to paste.
       render: text
     validations:
       required: true
