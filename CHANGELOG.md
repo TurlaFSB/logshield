@@ -7,6 +7,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 ## [Unreleased]
 
 ### Added
+- `examples/grafana`: a Grafana dashboard for the documented metrics, a one-command Docker Compose demo (LogShield, Prometheus, Grafana and a traffic generator), and a test that fails if the dashboard queries a metric that is not exposed.
 - `logshield check`: explain what the engine thinks of one payload (verdict, rules, decoding path, CVEs) without a proxy or a network. Defanged output, `-json`, script-friendly exit codes (0 clean, 3 suspicious, 4 malicious).
 - `GOVERNANCE.md`, and a documented advisory and CVE process in `SECURITY.md`.
 - Log-event schema in `docs/observability.md`, and tests that fail when a metric or a log field is added, renamed or retyped without being documented.
