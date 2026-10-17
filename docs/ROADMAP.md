@@ -51,13 +51,19 @@ These started as goals and were then confirmed by measurement (details in the
 
 Candidates, roughly in order of value. None is promised.
 
-- **Outside review.** Invite someone who knows Log4j or OT security to try to bypass it; every confirmed bypass becomes a corpus entry.
+- **Outside review.** The invitation is published ([challenge](challenge.md)); the first independent report is still to come. Every confirmed bypass becomes a corpus entry.
 - **Wider validation.** Run the lab against more Log4j versions (such as 2.15 and 2.16) and more JDKs, and extend the differential to other logging paths.
 - **Measurements still missing.** Memory under concurrent load and behaviour on production-shaped traffic ([performance](performance.md)).
 - **Control self-test canary** (Step 4).
 - **Container health check.** The distroless image has no shell, so a plain `docker run` has no built-in `HEALTHCHECK`; a small `-healthcheck` mode would close that gap.
 - **SLSA Build Level 3**, by moving the release build into an isolated reusable workflow ([assurance](assurance.md)).
 - **A second maintainer**, which also raises the Code-Review and OpenSSF scores.
+
+## Done since 0.1.0
+
+- `logshield check`, to explain the verdict for one payload without a proxy.
+- A Grafana dashboard on the documented metrics, with a one-command demo.
+- A public challenge page for independent testers ([challenge](challenge.md)).
 
 ## Working agreement
 

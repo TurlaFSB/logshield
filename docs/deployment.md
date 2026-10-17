@@ -16,7 +16,7 @@ terminator) and the application it protects, and make the application reachable
 ## First rollout
 
 1. Start in **monitor** mode (the default). Nothing is blocked; every verdict is logged and counted.
-2. Watch `logshield_requests_total` and the logs for a few days of real traffic. Any `malicious` verdict on traffic you recognise as legitimate is a false positive worth a report.
+2. Watch `logshield_requests_total` and the logs for a few days of real traffic (the [Grafana dashboard](../examples/grafana/README.md) shows "Would be blocked / s", the number to watch before you enforce). Any `malicious` verdict on traffic you recognise as legitimate is a false positive worth a report. To see why a specific request was flagged, replay its suspicious part through `logshield check` ([proxy](proxy.md#explaining-a-verdict-logshield-check)).
 3. Switch `mode` to `block`. Consider `block_suspicious` once you have seen what your traffic produces for `suspicious` (see [the hardened profile](configuration.md)).
 4. Alert on `blocked` events and on any rise in `suspicious`.
 
