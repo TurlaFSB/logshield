@@ -101,6 +101,41 @@ downstream decoding), and the report counts them as over-blocks.
 | `lab/setup.sh`, `lab/run.sh` | Run on the **VM**: verify, compile, start, `faithful`, `run`, stop |
 | `internal/lab`, `cmd/labrun` | Request builder, classification, report (unit-tested with fakes and the real proxy) |
 
+## Reading the result
+
+Reference run (Metasploitable 3, Ubuntu 14.04, OpenJDK 8u504, Log4j 2.14.1,
+2,276 entries: the hand-written corpora plus 2,000 generated benign requests):
+
+| Outcome | Count |
+|---|---|
+| Real JNDI lookups by Log4j | 107, all flagged malicious by the engine |
+| Misses, leaks, false positives, corpus mismatches, indeterminate | 0 |
+| Over-blocks (attack-class, Log4j ignored) | 40 |
+
+The 40 over-blocks are not noise; each group has a reason:
+
+| Group | Why Log4j ignored it | Why the engine still blocks it |
+|---|---|---|
+| Scheme variants (`nis`, `nds`, `http`, `https`, uppercase `LDAP`) | The JDK has no provider for them. `faithful` proves it against real Log4j. | Other JNDI providers exist on application servers; the cost of blocking is near zero. |
+| Unterminated `${jndi:...` | Log4j does not resolve an unclosed lookup. | A truncating proxy or a later concatenation can complete it. |
+| Exotic encodings (HTML entities, `\x`, full-width, overlong, repeated percent-encoding, base64 in arbitrary fields, UTF-16 without a label) | Neither Log4j nor mainstream frameworks decode them by default. | The engine assumes any downstream decoder (defence in depth, ADR 0002). |
+| Resource budgets (nesting, field count, decompression bomb) | Not a lookup. | Fail closed by design. |
+| Malformed framing refused by Go (NUL-interleaved header, bad header name) | Never reaches the application. | The refusal is the protection. |
+
+Everything a mainstream stack decodes (Basic-auth, JWT, forms, cookies, JSON
+escapes, declared or sniffed charsets, gzip, labelled multipart parts) is
+modelled by the canary, and those cases are counted among the 107 real triggers.
+
+### The policy question: suspicious requests
+
+Fifteen requests made Log4j resolve a non-JNDI lookup (`${env:...}`,
+`${sys:...}`, `${java:...}`, `${date:...}`) and were forwarded, because the
+engine rates them *suspicious* and the default configuration does not block
+suspicious requests. They disclose host details into logs but do not open a
+network connection. `./run.sh strict` re-runs everything with
+`-block-suspicious` to measure the effect: what it would catch, and which
+benign look-alikes (documentation, templates) it would also block.
+
 ## Prerequisites on the VM
 
 - **Loopback must be reachable.** Metasploitable 3's iptables INPUT chain ends in

@@ -5,6 +5,7 @@
 #   ./run.sh status     show what is running
 #   ./run.sh faithful   prove the JNDI hook reports what real Log4j really does on the network
 #   ./run.sh run [-- labrun flags]   run the corpora (direct + via LogShield); writes ./lab-out
+#   ./run.sh strict [-- labrun flags]   same, with LogShield also blocking suspicious requests -> ./lab-out-strict
 #   ./run.sh stop       stop everything
 #
 # Everything listens on 127.0.0.1 only. Attack payloads in the corpora point at
@@ -46,6 +47,16 @@ waitfor() { # url, seconds
   return 1
 }
 
+start_logshield() { # extra logshield flags
+  start_bg logshield "$HERE/bin/logshield" -listen 127.0.0.1:$PROXY_PORT \
+    -upstream http://127.0.0.1:$CANARY_HOOK_PORT -mode block -admin-listen 127.0.0.1:$ADMIN_PORT -log-level warn "$@"
+}
+
+stop_logshield() {
+  if alive logshield; then kill "$(cat "$RUN/logshield.pid")" 2>/dev/null || true; sleep 1; fi
+  rm -f "$RUN/logshield.pid"
+}
+
 fail_start() { # component
   echo "run: $1 failed to start. Last lines of run/$1.log:" >&2
   tail -n 15 "$RUN/$1.log" >&2 || true
@@ -66,8 +77,7 @@ cmd_start() {
   echo "run: starting canary (hook)"; start_bg canary-hook env CANARY_ADDR=127.0.0.1 CANARY_PORT=$CANARY_HOOK_PORT \
     "$JAVA" $JOPTS -Djava.naming.factory.url.pkgs=lab.jndi -cp "$CP" Canary
   waitfor http://127.0.0.1:$CANARY_HOOK_PORT/lab-probe 60 && alive canary-hook || fail_start canary-hook
-  echo "run: starting LogShield (block mode)"; start_bg logshield "$HERE/bin/logshield" -listen 127.0.0.1:$PROXY_PORT \
-    -upstream http://127.0.0.1:$CANARY_HOOK_PORT -mode block -admin-listen 127.0.0.1:$ADMIN_PORT -log-level warn
+  echo "run: starting LogShield (block mode)"; start_logshield
   waitfor http://127.0.0.1:$ADMIN_PORT/readyz 20 && alive logshield || fail_start logshield
   echo "run: all three components are up (the real-network canary starts only for 'faithful')"
 }
@@ -129,6 +139,24 @@ cmd_run() {
     -corpus "$HERE/corpus" -out "$HERE/lab-out" "$@"
 }
 
+# Re-run the corpora with LogShield also blocking "suspicious" requests
+# (-block-suspicious), to measure what the stricter policy would catch and cost.
+# Expect FALSE_POSITIVE rows for benign look-alikes: that is the cost being measured.
+cmd_strict() {
+  alive listener && alive canary-hook || { echo "strict: run ./run.sh start first" >&2; exit 1; }
+  stop_logshield
+  start_logshield -block-suspicious
+  waitfor http://127.0.0.1:$ADMIN_PORT/readyz 20 || { echo "strict: logshield did not become ready" >&2; tail -n 15 "$RUN/logshield.log" >&2; exit 1; }
+  [ "${1:-}" = "--" ] && shift
+  rc=0
+  "$HERE/bin/labrun" -canary 127.0.0.1:$CANARY_HOOK_PORT -proxy 127.0.0.1:$PROXY_PORT \
+    -corpus "$HERE/corpus" -out "$HERE/lab-out-strict" -label strict "$@" || rc=$?
+  stop_logshield
+  start_logshield
+  waitfor http://127.0.0.1:$ADMIN_PORT/readyz 20 || echo "strict: warning, normal logshield did not come back" >&2
+  return $rc
+}
+
 c=${1:-}; [ $# -gt 0 ] && shift
 case "$c" in
   start) cmd_start ;;
@@ -136,5 +164,6 @@ case "$c" in
   stop) cmd_stop ;;
   faithful) cmd_faithful ;;
   run) cmd_run "$@" ;;
+  strict) cmd_strict "$@" ;;
   *) sed -n '2,12p' "$0"; exit 2 ;;
 esac

@@ -180,11 +180,12 @@ func Send(ctx context.Context, addr string, raw []byte, timeout time.Duration) (
 	return out, nil
 }
 
-// resolverRe matches a named Log4j 2.14.1 lookup in the original text. It is a
+// resolverRe matches a named Log4j 2.14.1 lookup in the original text; a $$ in
+// front escapes the lookup and does not count. It is a
 // heuristic for reporting: a lookup whose name is itself built by nested
 // lookups (for example ${${lower:e}nv:HOME}) still contains ${lower: and is
 // counted. The pass/fail rules do not depend on it.
-var resolverRe = regexp.MustCompile(`(?i)\$\{\s*(ctx|date|docker|env|event|java|jvmrunargs|k8s|log4j|lower|main|map|marker|bundle|sd|spring|sys|upper|web):`)
+var resolverRe = regexp.MustCompile(`(?i)(?:^|[^$])\$\{\s*(ctx|date|docker|env|event|java|jvmrunargs|k8s|log4j|lower|main|map|marker|bundle|sd|spring|sys|upper|web):`)
 
 // TruthOf reads ground truth out of a canary reply.
 func TruthOf(r Response, err error) (Truth, []string) {

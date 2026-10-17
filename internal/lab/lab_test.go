@@ -286,6 +286,8 @@ func TestTruthOfSeparatesLookupsFromRewrites(t *testing.T) {
 		{"${${lower:e}nv:HOME}", TruthLookupOnly},
 		{"x ${var:-default} y", TruthRewriteOnly},
 		{"id = $${escaped}", TruthRewriteOnly},
+		{"$${ctx:loginId}", TruthRewriteOnly},
+		{"a $${env:HOME} b ${sys:user.name}", TruthLookupOnly},
 		{"${::-j}", TruthRewriteOnly},
 	}
 	for _, tc := range tests {
