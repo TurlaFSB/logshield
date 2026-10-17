@@ -205,3 +205,68 @@ func TestNewTransportVerifiesUpstreamCertificates(t *testing.T) {
 		t.Errorf("ServerName override: %v", e)
 	}
 }
+
+// handshake connects a TLS 1.2 client restricted to the given suites to a server
+// built from cfg, and reports whether the handshake succeeded.
+func handshake(t *testing.T, srvCfg *tls.Config, pool *x509.CertPool, suites []uint16) error {
+	t.Helper()
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", srvCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		if tc, ok := c.(*tls.Conn); ok {
+			_ = tc.Handshake()
+		}
+		_ = c.Close()
+	}()
+	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+		RootCAs: pool, ServerName: "localhost",
+		MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS12, CipherSuites: suites,
+	})
+	if err == nil {
+		_ = c.Close()
+	}
+	return err
+}
+
+func TestDefaultTLSCipherSuitesAreForwardSecretAEADOnly(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile, pool := selfSigned(t, dir, "suites", time.Now().Add(time.Hour))
+	cbc := []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA}
+	gcm := []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
+
+	def, err := NewServerTLS(TLSConfig{CertFile: certFile, KeyFile: keyFile}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range def.CipherSuites {
+		for _, s := range tls.CipherSuites() {
+			if s.ID == id && (strings.Contains(s.Name, "_CBC_") || !strings.Contains(s.Name, "ECDHE_")) {
+				t.Errorf("default list contains %s", s.Name)
+			}
+		}
+	}
+	if err := handshake(t, def, pool, gcm); err != nil {
+		t.Errorf("AEAD client refused by default: %v", err)
+	}
+	if err := handshake(t, def, pool, cbc); err == nil {
+		t.Error("CBC client accepted by default")
+	}
+
+	legacy, err := NewServerTLS(TLSConfig{CertFile: certFile, KeyFile: keyFile, LegacyCiphers: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.CipherSuites != nil {
+		t.Error("legacy mode should use Go's default suite list")
+	}
+	if err := handshake(t, legacy, pool, cbc); err != nil {
+		t.Errorf("CBC client refused in legacy mode: %v", err)
+	}
+}

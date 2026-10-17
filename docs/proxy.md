@@ -66,7 +66,7 @@ mutate requests at each stage to prove the guard trips.
 
 ## TLS and HTTP/2
 
-With `-tls-cert` and `-tls-key` the proxy serves HTTPS (TLS 1.2+, `-tls-min-version
+With `-tls-cert` and `-tls-key` the proxy serves HTTPS (TLS 1.2+ with forward-secret AEAD suites only unless `-tls-legacy-ciphers`; `-tls-min-version
 1.3` to require 1.3), negotiating HTTP/2 or HTTP/1.1. HTTP/2 is terminated, not
 relayed: each stream becomes an ordinary request that is inspected, re-serialized
 and sent to the upstream over HTTP/1.1, so `:authority`, `cookie` crumbs, trailers

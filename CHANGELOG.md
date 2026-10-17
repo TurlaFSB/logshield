@@ -6,6 +6,9 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 
 ## [Unreleased]
 
+### Changed
+- TLS 1.2 now accepts only forward-secret AEAD cipher suites by default (ECDHE with AES-GCM or ChaCha20-Poly1305). CBC and SHA-1 suites are off. Old clients that need them can be served with `tls_legacy_ciphers` (`-tls-legacy-ciphers`).
+
 ## [0.1.0-rc.1] - 2026-10-17
 
 First release candidate. Pin a verified release, run in monitor mode first, and read [docs/threat-model.md](docs/threat-model.md).

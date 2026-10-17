@@ -69,6 +69,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 		logLevel    = fs.String("log-level", d.LogLevel, "debug, info, warn or error")
 		tlsCert     = fs.String("tls-cert", d.TLSCertFile, "PEM certificate chain: serve HTTPS (and HTTP/2) to clients; reloaded when the file changes")
 		tlsKey      = fs.String("tls-key", d.TLSKeyFile, "PEM private key for -tls-cert")
+		tlsLegacy   = fs.Bool("tls-legacy-ciphers", d.TLSLegacyCiphers, "also accept CBC and SHA-1 TLS 1.2 cipher suites (old clients only)")
 		tlsMin      = fs.String("tls-min-version", d.TLSMinVersion, "lowest TLS version accepted from clients: 1.2 or 1.3")
 		upstreamCA  = fs.String("upstream-ca", d.UpstreamCAFile, "PEM CA bundle to verify an https upstream (instead of the system roots)")
 		upstreamSNI = fs.String("upstream-server-name", d.UpstreamServerName, "name to verify in the https upstream's certificate, for upstreams addressed by IP")
@@ -142,6 +143,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 			settings.TLSKeyFile = *tlsKey
 		case "tls-min-version":
 			settings.TLSMinVersion = *tlsMin
+		case "tls-legacy-ciphers":
+			settings.TLSLegacyCiphers = *tlsLegacy
 		case "upstream-ca":
 			settings.UpstreamCAFile = *upstreamCA
 		case "upstream-server-name":

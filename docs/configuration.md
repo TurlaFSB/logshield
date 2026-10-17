@@ -34,6 +34,7 @@ It exits 0 if valid and 2 if not, which makes it usable as a CI or pre-deploy ch
 | `tls_cert_file` | `LOGSHIELD_TLS_CERT_FILE` | `-tls-cert` | off (plain HTTP) |
 | `tls_key_file` | `LOGSHIELD_TLS_KEY_FILE` | `-tls-key` | |
 | `tls_min_version` | `LOGSHIELD_TLS_MIN_VERSION` | `-tls-min-version` | `1.2` |
+| `tls_legacy_ciphers` | `LOGSHIELD_TLS_LEGACY_CIPHERS` | `-tls-legacy-ciphers` | `false` |
 | `upstream_ca_file` | `LOGSHIELD_UPSTREAM_CA_FILE` | `-upstream-ca` | system roots |
 | `upstream_server_name` | `LOGSHIELD_UPSTREAM_SERVER_NAME` | `-upstream-server-name` | the upstream host |
 
@@ -44,6 +45,12 @@ stops reading is cut off instead of holding an in-flight slot forever (slow-read
 protection). `drain_delay` keeps the proxy serving after `/readyz` starts failing
 on shutdown, so a load balancer has time to stop sending traffic; set it to your
 balancer's health-check interval (for example `5s`).
+
+By default TLS 1.2 accepts only forward-secret AEAD cipher suites (ECDHE with
+AES-GCM or ChaCha20-Poly1305, the Mozilla "intermediate" profile) and TLS 1.3 is
+always AEAD. CBC-mode and SHA-1 suites are off. Very old clients, such as
+Java 7, cannot negotiate these; set `tls_legacy_ciphers` to `true` only if you
+must serve them, and prefer fixing the client.
 
 With a certificate and key set, clients are served HTTPS with HTTP/2 and HTTP/1.1
 ([ADR 0005](adr/0005-tls-termination-and-http2.md)). The files are re-read when

@@ -20,6 +20,10 @@ type TLSConfig struct {
 	CertFile, KeyFile string
 	// MinVersion is tls.VersionTLS12 (default) or tls.VersionTLS13.
 	MinVersion uint16
+	// LegacyCiphers re-enables Go's full default TLS 1.2 cipher suite list,
+	// including CBC-mode and SHA-1 suites, for old clients. The default is
+	// forward-secret AEAD suites only (ECDHE with AES-GCM or ChaCha20-Poly1305).
+	LegacyCiphers bool
 	// ReloadEvery bounds how often the files are stat'ed. Default 10s.
 	ReloadEvery time.Duration
 }
@@ -72,11 +76,30 @@ func NewServerTLS(c TLSConfig, logger *slog.Logger) (*tls.Config, error) {
 	if err := r.load(); err != nil {
 		return nil, err
 	}
-	return &tls.Config{ //nolint:gosec // MinVersion was validated above: only TLS 1.2 or 1.3 gets here
+	cfg := &tls.Config{ //nolint:gosec // MinVersion was validated above: only TLS 1.2 or 1.3 gets here
 		MinVersion:     c.MinVersion,
 		GetCertificate: r.get,
 		NextProtos:     []string{"h2", "http/1.1"},
-	}, nil
+	}
+	if !c.LegacyCiphers {
+		cfg.CipherSuites = aeadCipherSuites()
+	}
+	return cfg, nil
+}
+
+// aeadCipherSuites is the TLS 1.2 suite list: forward-secret key exchange (ECDHE)
+// with authenticated encryption only. It matches the Mozilla "intermediate"
+// profile. TLS 1.3 suites are fixed by the standard and are all AEAD, so Go
+// ignores this list for TLS 1.3.
+func aeadCipherSuites() []uint16 {
+	return []uint16{
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	}
 }
 
 type certReloader struct {

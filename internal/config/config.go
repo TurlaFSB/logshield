@@ -59,6 +59,8 @@ type Settings struct {
 	TLSCertFile   string `json:"tls_cert_file"`
 	TLSKeyFile    string `json:"tls_key_file"`
 	TLSMinVersion string `json:"tls_min_version"` // "1.2" (default) or "1.3"
+	// TLSLegacyCiphers re-enables CBC and SHA-1 TLS 1.2 suites for old clients.
+	TLSLegacyCiphers bool `json:"tls_legacy_ciphers"`
 
 	// Verification of an https upstream. Verification is never disabled.
 	UpstreamCAFile     string `json:"upstream_ca_file"`
@@ -183,6 +185,7 @@ var envVars = []envVar{
 	{"TLS_CERT_FILE", str(func(s *Settings) *string { return &s.TLSCertFile })},
 	{"TLS_KEY_FILE", str(func(s *Settings) *string { return &s.TLSKeyFile })},
 	{"TLS_MIN_VERSION", str(func(s *Settings) *string { return &s.TLSMinVersion })},
+	{"TLS_LEGACY_CIPHERS", boolean(func(s *Settings) *bool { return &s.TLSLegacyCiphers })},
 	{"UPSTREAM_CA_FILE", str(func(s *Settings) *string { return &s.UpstreamCAFile })},
 	{"UPSTREAM_SERVER_NAME", str(func(s *Settings) *string { return &s.UpstreamServerName })},
 }
@@ -322,7 +325,7 @@ func (s Settings) Timeouts() (Timeouts, error) {
 // empty when TLS is not configured.
 func (s Settings) TLSConfig() (proxy.TLSConfig, error) {
 	v, err := proxy.ParseTLSVersion(s.TLSMinVersion)
-	c := proxy.TLSConfig{CertFile: s.TLSCertFile, KeyFile: s.TLSKeyFile, MinVersion: v}
+	c := proxy.TLSConfig{CertFile: s.TLSCertFile, KeyFile: s.TLSKeyFile, MinVersion: v, LegacyCiphers: s.TLSLegacyCiphers}
 	return c, errors.Join(err, c.Validate())
 }
 

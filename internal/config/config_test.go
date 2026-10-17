@@ -204,10 +204,10 @@ func TestUpstreamTLSSettings(t *testing.T) {
 
 func TestTLSEnvironment(t *testing.T) {
 	s := Defaults()
-	if _, err := s.ApplyEnv([]string{"LOGSHIELD_TLS_CERT_FILE=c", "LOGSHIELD_TLS_KEY_FILE=k", "LOGSHIELD_TLS_MIN_VERSION=1.3", "LOGSHIELD_UPSTREAM_CA_FILE=ca", "LOGSHIELD_UPSTREAM_SERVER_NAME=n"}); err != nil {
+	if _, err := s.ApplyEnv([]string{"LOGSHIELD_TLS_CERT_FILE=c", "LOGSHIELD_TLS_KEY_FILE=k", "LOGSHIELD_TLS_MIN_VERSION=1.3", "LOGSHIELD_TLS_LEGACY_CIPHERS=true", "LOGSHIELD_UPSTREAM_CA_FILE=ca", "LOGSHIELD_UPSTREAM_SERVER_NAME=n"}); err != nil {
 		t.Fatal(err)
 	}
-	if s.TLSCertFile != "c" || s.TLSKeyFile != "k" || s.TLSMinVersion != "1.3" || s.UpstreamCAFile != "ca" || s.UpstreamServerName != "n" {
+	if s.TLSCertFile != "c" || s.TLSKeyFile != "k" || s.TLSMinVersion != "1.3" || !s.TLSLegacyCiphers || s.UpstreamCAFile != "ca" || s.UpstreamServerName != "n" {
 		t.Errorf("%+v", s)
 	}
 }
