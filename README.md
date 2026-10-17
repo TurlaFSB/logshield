@@ -153,7 +153,7 @@ Rules are stable IDs (`LSH-1001` to `LSH-3003`) mapped to CVEs; see
 |---|---|---|
 | Bypass corpus (165 entries, 14 classes, provenance per entry) not blocked | 0 | **0** |
 | Benign requests blocked (111 hand-written + 100,000 generated) | < 0.1% (95% bound) | **0**, bound < 0.0038% |
-| Against real vulnerable Log4j 2.14.1 in the lab: JNDI lookups Log4j attempted / flagged / forwarded to it | all flagged | **107 / 107 / 0** ([lab](docs/lab.md)) |
+| Against real vulnerable Log4j 2.14.1 in the lab: JNDI lookups Log4j attempted / flagged / forwarded to it | all flagged | **107 / 107 / 0** ([report](docs/lab-report.md)) |
 | Added latency through the proxy, 1 client (p99) | < 5 ms | **0.7 ms** ([load report](docs/load-report.md)) |
 | Engine cost per request | well under the 5 ms p99 budget | about 4 to 10 µs typical, about 3 ms worst case before fail-closed |
 | Test coverage | at least 97% total, 98% engine | 99.1% total, 99.5% engine |

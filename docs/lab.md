@@ -103,6 +103,8 @@ downstream decoding), and the report counts them as over-blocks.
 
 ## Reading the result
 
+The full report is committed as [lab-report.md](lab-report.md).
+
 Reference run (Metasploitable 3, Ubuntu 14.04, OpenJDK 8u504, Log4j 2.14.1,
 2,276 entries: the hand-written corpora plus 2,000 generated benign requests):
 
@@ -128,7 +130,7 @@ modelled by the canary, and those cases are counted among the 107 real triggers.
 
 ### The policy question: suspicious requests
 
-Fifteen requests made Log4j resolve a non-JNDI lookup (`${env:...}`,
+Fourteen requests made Log4j resolve a non-JNDI lookup (`${env:...}`,
 `${sys:...}`, `${java:...}`, `${date:...}`) and were forwarded, because the
 engine rates them *suspicious* and the default configuration does not block
 suspicious requests. They disclose host details into logs but do not open a
