@@ -9,11 +9,11 @@ certification. Where a practice is only partly met, it says so.
 | Check | Status | Evidence |
 |---|---|---|
 | Binary-Artifacts | Met | No binaries in the repository or its history |
-| Branch-Protection | Met once the ruleset is applied | `scripts/repo-settings.sh --protect`: pull requests, passing checks, no force-push, no deletion (applied before the first stable release) |
+| Branch-Protection | Met | Ruleset on `main`: pull requests, six required passing checks, up-to-date branches, linear history, no force-push, no deletion (`scripts/repo-settings.sh --protect` recreates it) |
 | CI-Tests | Met | [ci.yml](../.github/workflows/ci.yml): unit, race, fuzz smoke, integration, load smoke, three operating systems |
 | CII-Best-Practices | Met | "Passing" badge: <https://www.bestpractices.dev/projects/15621> |
 | Maintained | Time-based | Scorecard requires the repository to be at least 90 days old; commits are frequent |
-| Code-Review | Limited | Single maintainer today; once the ruleset is applied every change is a pull request with passing CI, but human review depends on contributors |
+| Code-Review | Limited | Single maintainer today; every change is a pull request with passing CI, but human review depends on contributors |
 | Dangerous-Workflow | Met | No `pull_request_target`, no untrusted input in `run` steps |
 | Dependency-Update-Tool | Met | [Dependabot](../.github/dependabot.yml) for Go modules, Actions and Docker |
 | Fuzzing | Met | Go fuzz targets run on every change and weekly |
