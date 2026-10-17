@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/TurlaFSB/logshield/actions/workflows/ci.yml/badge.svg)](https://github.com/TurlaFSB/logshield/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/TurlaFSB/logshield/actions/workflows/codeql.yml/badge.svg)](https://github.com/TurlaFSB/logshield/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/TurlaFSB/logshield/badge)](https://scorecard.dev/viewer/?uri=github.com/TurlaFSB/logshield)
+[![Release](https://img.shields.io/github/v/release/TurlaFSB/logshield?include_prereleases)](https://github.com/TurlaFSB/logshield/releases)
 [![Go version](https://img.shields.io/badge/go-1.24%2B-00ADD8.svg)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -198,6 +200,7 @@ test against systems you do not own or have written authorization to test.
 | Deploying it: topologies, rollout, systemd, Kubernetes, nginx | [docs/deployment.md](docs/deployment.md) |
 | OT/ICS use: zones and conduits, compensating control, availability trade-off | [docs/ot-ics.md](docs/ot-ics.md) |
 | Versioning, release contents, verifying signatures and provenance | [docs/releasing.md](docs/releasing.md) |
+| Assurance: Scorecard, Best Practices, SLSA and SSDF self-assessment | [docs/assurance.md](docs/assurance.md) |
 | Load and latency report | [docs/load-report.md](docs/load-report.md) |
 | Metrics, health checks, overload, Prometheus and Sigma rules | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |

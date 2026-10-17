@@ -5,9 +5,9 @@ Responsible reports are welcome and appreciated.
 
 ## Supported versions
 
-LogShield is pre-release. Only the latest commit on `main` is supported until the
-first tagged release. After `v1.0.0`, the latest minor release line receives
-security fixes.
+LogShield is pre-release. Only the latest release candidate or release, and the
+latest commit on `main`, are supported. After `v1.0.0`, the latest minor release
+line receives security fixes.
 
 ## Reporting a vulnerability
 
@@ -51,6 +51,21 @@ Out of scope:
 
 This is a student-maintained project, so these are good-faith targets rather
 than contractual guarantees.
+
+## Disclosure
+
+We follow coordinated disclosure. We ask for up to 90 days to fix a confirmed
+issue before public details, and will say so early if we need less or more.
+Confirmed vulnerabilities are published as GitHub Security Advisories (with a
+CVE where it applies) and noted in the [changelog](CHANGELOG.md), together with
+the fixed version and, for detection bypasses, a regression entry in the
+corpus.
+
+## Verifying what you download
+
+Releases are signed and carry provenance and an SBOM. See
+[docs/releasing.md](docs/releasing.md) for the exact verification commands, and
+treat any binary that does not verify as untrusted.
 
 ## Safe-harbor testing
 

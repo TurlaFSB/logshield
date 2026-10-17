@@ -1,0 +1,4 @@
+# Python tools CI installs, pinned by hash in requirements.txt.
+pysigma==2.0.1
+pyyaml
+ruff==0.16.8
