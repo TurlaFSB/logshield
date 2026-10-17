@@ -11,7 +11,7 @@ certification. Where a practice is only partly met, it says so.
 | Binary-Artifacts | Met | No binaries in the repository or its history |
 | Branch-Protection | Met once the ruleset is applied | `scripts/repo-settings.sh --protect`: pull requests, passing checks, no force-push, no deletion (applied before the first stable release) |
 | CI-Tests | Met | [ci.yml](../.github/workflows/ci.yml): unit, race, fuzz smoke, integration, load smoke, three operating systems |
-| CII-Best-Practices | Partly | See the checklist below; the project must be registered at bestpractices.dev for the badge |
+| CII-Best-Practices | Met | "Passing" badge: <https://www.bestpractices.dev/projects/15621> |
 | Maintained | Time-based | Scorecard requires the repository to be at least 90 days old; commits are frequent |
 | Code-Review | Limited | Single maintainer today; once the ruleset is applied every change is a pull request with passing CI, but human review depends on contributors |
 | Dangerous-Workflow | Met | No `pull_request_target`, no untrusted input in `run` steps |
@@ -27,6 +27,8 @@ certification. Where a practice is only partly met, it says so.
 | Vulnerabilities | Met | `govulncheck` in CI; no third-party Go dependencies |
 
 ## OpenSSF Best Practices (passing level), selected criteria
+
+The project holds the **passing** badge ([project 15621](https://www.bestpractices.dev/projects/15621)). The answers and their evidence are on that page; the table below picks out the main ones.
 
 | Criterion | Evidence |
 |---|---|

@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/TurlaFSB/logshield/actions/workflows/ci.yml/badge.svg)](https://github.com/TurlaFSB/logshield/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/TurlaFSB/logshield/actions/workflows/codeql.yml/badge.svg)](https://github.com/TurlaFSB/logshield/actions/workflows/codeql.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15621/badge)](https://www.bestpractices.dev/projects/15621)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/TurlaFSB/logshield/badge)](https://scorecard.dev/viewer/?uri=github.com/TurlaFSB/logshield)
 [![Release](https://img.shields.io/github/v/release/TurlaFSB/logshield?include_prereleases)](https://github.com/TurlaFSB/logshield/releases)
 [![Go version](https://img.shields.io/badge/go-1.24%2B-00ADD8.svg)](go.mod)
