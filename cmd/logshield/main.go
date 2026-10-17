@@ -224,7 +224,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, ready fun
 	logger.Info("listening", "addr", ln.Addr().String(), "upstream", target.Redacted(),
 		"mode", settings.Mode, "tls", tlsCfg != nil, "version", version.String())
 	if settings.Mode == string(proxy.ModeMonitor) {
-		logger.Info("monitor mode: requests are recorded but never blocked; use -mode block to enforce")
+		logger.Warn("monitor mode: requests are recorded but never blocked; use -mode block to enforce")
 	}
 	if ready != nil {
 		ready(ln.Addr().String())

@@ -52,6 +52,31 @@ Level 2**. Level 3 requires the build to run in an isolated reusable workflow
 that the project's own steps cannot influence; this is a possible future
 improvement, and the project does not claim it.
 
+## CISA secure by design
+
+How the project lines up with the [CISA Secure by Design](https://www.cisa.gov/securebydesign)
+principles, and where it deliberately does not.
+
+| Principle | In LogShield |
+|---|---|
+| Secure by default | Loopback-only listener, admin endpoints off, mandatory rules that cannot be disabled, fail closed on inspection errors, TLS 1.2 with forward-secret AEAD suites only, distroless non-root image that runs with a read-only root filesystem. |
+| Take ownership of security outcomes | Stable rule IDs, a measured false-positive rate, a documented threat model that lists what is **not** detected, and a hardened profile (`examples/logshield.hardened.json`). |
+| Radical transparency | Public advisories with CVE identifiers ([SECURITY.md](../SECURITY.md)), SPDX SBOM, signed provenance, reproducible archives, evidence and limits published ([lab.md](lab.md), [threat model](threat-model.md)). |
+| Memory-safe language, few dependencies | Go, standard library only (no third-party Go modules). |
+| Defence in depth, not one control | Documented as a compensating control: it does not replace patching ([ot-ics.md](ot-ics.md)). |
+
+**The one default that is not "enforce": monitor mode.** `-mode` defaults to
+`monitor`, so a fresh install records and counts detections but blocks nothing.
+This is a deliberate, documented exception. A reverse proxy placed in front of
+an application it has never seen can break real traffic, and the people who
+deploy it into OT and legacy environments cannot afford an outage on first
+start. The mitigations: the process logs a warning at startup that it is not
+blocking; every request carries `mode` in its log line and metrics;
+`logshield_monitor_would_block_total` shows exactly what block mode would have
+stopped; and [deployment.md](deployment.md) makes switching to `block` the
+second step of every rollout. A deployment that stays in monitor mode has
+logging, not protection.
+
 ## NIST SSDF (SP 800-218), summary
 
 | Practice group | How it is addressed |

@@ -30,6 +30,38 @@ stops accepting and finishes in-flight requests (up to 15 s).
 | `logshield_requests_in_flight` | gauge | | Current concurrency. |
 | `logshield_build_info` | gauge | `version` | Always 1. |
 
+## Log events
+
+Each request that is blocked, rejected, failed or flagged is one JSON line on
+standard error (`slog` JSON handler). Clean requests are logged only at `debug`.
+Every string is defanged, so a log line never contains a live `${`. The query
+string is never logged, only its length. Field names are part of the public
+surface versioned in [releasing.md](releasing.md).
+
+`msg` is `request blocked`, `request rejected`, `request flagged` (a
+suspicious or would-block request that was forwarded), `request failed`, or
+`request` (debug).
+
+| Field | Meaning |
+|---|---|
+| `id` | Request identifier, also sent upstream and in the response. |
+| `mode` | `monitor` or `block`. |
+| `action` | `forwarded`, `blocked`, `rejected` or `error`. |
+| `status` | HTTP status sent to the client. |
+| `decision` | Engine verdict: `clean`, `suspicious` or `malicious`. |
+| `would_block` | True when monitor mode forwarded a request that block mode would have stopped. |
+| `remote` | Client IP address. |
+| `method`, `host`, `path` | Defanged and truncated request parts. |
+| `query_bytes`, `body_bytes` | Sizes only; the content is not logged. |
+| `duration_us`, `inspect_us` | Total time and engine time, in microseconds. |
+| `reason` | Stable code for rejections and errors. |
+| `body_truncated`, `body_skipped` | Only the first `-max-body` bytes were inspected, or the body type is on the skip list. |
+| `failed_open` | Inspection failed and `-on-error open` forwarded the request anyway. |
+| `budget` | The engine budget that was exhausted, if any. |
+| `rules` | Rule IDs that fired, for example `["LSH-1001"]`. |
+| `detections` | Up to 8 findings, each with `rule`, `severity`, `location`, `scheme`, `evidence` and `decoded_via` (the decoding layers that revealed it). |
+| `detections_omitted` | How many further findings were not listed. |
+
 Suggested alerts:
 
 - `increase(logshield_inspection_errors_total[5m]) > 0` (a bug; report it).
