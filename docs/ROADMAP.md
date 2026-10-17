@@ -5,14 +5,16 @@ measurable.
 
 ## Targets
 
-These are goals to be confirmed by measurement, not claims.
+These started as goals and were then confirmed by measurement (details in the
+[evaluation report](eval/report.md), [lab report](lab-report.md) and
+[load report](load-report.md)).
 
-| Metric | Target |
-|---|---|
-| Missed payloads in in-scope bypass classes | 0 |
-| False-positive rate on the benign corpus | < 0.1% |
-| p99 added latency | < 5 ms |
-| Engine line coverage floor | >= 90% |
+| Metric | Target | Result at v0.1.0 |
+|---|---|---|
+| Missed payloads in in-scope bypass classes | 0 | 0 of 165 corpus entries; 107 of 107 real Log4j JNDI attempts flagged in the lab |
+| False-positive rate on the benign corpus | < 0.1% | 0 of 100,111 (95% upper bound below 0.0038%) |
+| p99 added latency | < 5 ms | 0.7 ms, one client |
+| Coverage floors (total / engine) | 97% / 98% | 97.5% / 99.5% |
 
 ## Step 1: inspection engine
 
@@ -43,7 +45,19 @@ These are goals to be confirmed by measurement, not claims.
 
 ## Step 5
 
-- [ ] Short technical write-up of methodology and results
+- [ ] Technical write-up of methodology and results. Drafted as a four-part series (what and why, how it works, how it was tested, how to use it); the links go here once published.
+
+## After 0.1
+
+Candidates, roughly in order of value. None is promised.
+
+- **Outside review.** Invite someone who knows Log4j or OT security to try to bypass it; every confirmed bypass becomes a corpus entry.
+- **Wider validation.** Run the lab against more Log4j versions (such as 2.15 and 2.16) and more JDKs, and extend the differential to other logging paths.
+- **Measurements still missing.** Memory under concurrent load and behaviour on production-shaped traffic ([performance](performance.md)).
+- **Control self-test canary** (Step 4).
+- **Container health check.** The distroless image has no shell, so a plain `docker run` has no built-in `HEALTHCHECK`; a small `-healthcheck` mode would close that gap.
+- **SLSA Build Level 3**, by moving the release build into an isolated reusable workflow ([assurance](assurance.md)).
+- **A second maintainer**, which also raises the Code-Review and OpenSSF scores.
 
 ## Working agreement
 
