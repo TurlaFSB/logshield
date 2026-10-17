@@ -2,10 +2,10 @@
 # Grafana and a generator that sends normal and attack-shaped requests.
 #
 #   docker compose up
-#   open http://127.0.0.1:3000   (Dashboards > LogShield)
+#   open http://127.0.0.1:13000   (Dashboards > LogShield)
 #
 # If a port is taken on your machine, pick others:
-#   LOGSHIELD_PORT=28080 GRAFANA_PORT=3001 docker compose up
+#   LOGSHIELD_PORT=28080 GRAFANA_PORT=13001 docker compose up
 #
 # Everything listens on 127.0.0.1 only. The attack payloads point at reserved
 # ".invalid" names and the "upstream" is a plain nginx page, so there is nothing
@@ -16,6 +16,8 @@ name: logshield-demo
 services:
   upstream:
     image: nginx:1.27-alpine
+    volumes:
+      - ./upstream.conf:/etc/nginx/conf.d/default.conf:ro   # answers 200 to everything, quietly
 
   logshield:
     image: ghcr.io/turlafsb/logshield:v0.1.0
@@ -46,7 +48,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ../logshield-dashboard.json:/var/lib/grafana/dashboards/logshield-dashboard.json:ro
     ports:
-      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-13000}:3000"
     depends_on: [prometheus]
 
   traffic:
