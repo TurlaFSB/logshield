@@ -76,6 +76,9 @@ will not pursue anyone who reports a vulnerability in good faith, stays within
 the scope above, avoids harming others' data or services, and gives us the
 chance to fix it before public disclosure.
 
+Want to try to break it? [docs/challenge.md](docs/challenge.md) says what counts and
+how to test an idea quickly.
+
 ## Disclosure
 
 We follow coordinated disclosure. We ask for up to 90 days to fix a confirmed
