@@ -5,7 +5,7 @@ Responsible reports are welcome and appreciated.
 
 ## Supported versions
 
-LogShield is pre-alpha. Only the latest commit on `main` is supported until the
+LogShield is pre-release. Only the latest commit on `main` is supported until the
 first tagged release. After `v1.0.0`, the latest minor release line receives
 security fixes.
 

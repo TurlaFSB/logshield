@@ -1,0 +1,87 @@
+# LogShield in front of an application, as its own Deployment and Service.
+# Point your Ingress/Service at "logshield", and make the application reachable
+# only from LogShield (NetworkPolicy below). Replace the image reference with a
+# release you have verified (see docs/deployment.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logshield
+data:
+  logshield.json: |
+    {
+      "listen": "0.0.0.0:8080",
+      "upstream": "http://app.default.svc.cluster.local:8080",
+      "mode": "block",
+      "on_error": "closed",
+      "admin_listen": "0.0.0.0:9090",
+      "drain_delay": "5s"
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logshield
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: logshield }
+  template:
+    metadata:
+      labels: { app: logshield }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: logshield
+          image: ghcr.io/turlafsb/logshield:CHANGE-ME
+          args: ["-config", "/etc/logshield/logshield.json"]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: admin, containerPort: 9090 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: admin }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: admin }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: config, mountPath: /etc/logshield, readOnly: true }
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap: { name: logshield }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logshield
+spec:
+  selector: { app: logshield }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+# Only LogShield may talk to the application.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: app-only-from-logshield
+spec:
+  podSelector:
+    matchLabels: { app: app }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: logshield }

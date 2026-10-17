@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use LogShield in research or documentation, please cite it as below."
+title: "LogShield: a Log4Shell virtual-patch reverse proxy"
+type: software
+authors:
+  - family-names: Verma
+    given-names: Pranav
+repository-code: "https://github.com/TurlaFSB/logshield"
+license: MIT
+abstract: >-
+  A defensive reverse proxy that detects and blocks Log4Shell (CVE-2021-44228
+  and related) payloads in front of applications that cannot be patched,
+  validated against a real vulnerable Log4j in an isolated lab.
+keywords:
+  - log4shell
+  - cve-2021-44228
+  - virtual patching
+  - reverse proxy
+  - compensating control

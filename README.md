@@ -195,6 +195,7 @@ test against systems you do not own or have written authorization to test.
 | Corpora and provenance | [corpus/README.md](corpus/README.md) |
 | Architecture decisions | [docs/adr/](docs/adr/) |
 | Configuration file, environment, flags | [docs/configuration.md](docs/configuration.md) |
+| Deploying it: topologies, rollout, systemd, Kubernetes, nginx | [docs/deployment.md](docs/deployment.md) |
 | Load and latency report | [docs/load-report.md](docs/load-report.md) |
 | Metrics, health checks, overload | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |

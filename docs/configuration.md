@@ -28,7 +28,6 @@ It exits 0 if valid and 2 if not, which makes it usable as a CI or pre-deploy ch
 | `max_in_flight` | `LOGSHIELD_MAX_IN_FLIGHT` | `-max-in-flight` | `1024` |
 | `log_level` | `LOGSHIELD_LOG_LEVEL` | `-log-level` | `info` |
 | `disabled_rules` | `LOGSHIELD_DISABLED_RULES` (comma list) | `-disable-rule` (repeat) | none |
-
 | `read_timeout` | `LOGSHIELD_READ_TIMEOUT` | `-read-timeout` | `30s` |
 | `client_write_timeout` | `LOGSHIELD_CLIENT_WRITE_TIMEOUT` | `-client-write-timeout` | `60s` (`0s` disables) |
 | `drain_delay` | `LOGSHIELD_DRAIN_DELAY` | `-drain-delay` | `0s` |
@@ -91,4 +90,4 @@ docker run --rm -e LOGSHIELD_UPSTREAM=http://backend:8080 -e LOGSHIELD_LISTEN=0.
   -e LOGSHIELD_MODE=monitor -p 8080:8080 <image>
 ```
 
-(An official image arrives with release engineering, Step 3d.)
+(An official image is published with the first release; see [deployment](deployment.md).)
