@@ -14,7 +14,9 @@ line receives security fixes.
 Please **do not** open a public issue for a vulnerability.
 
 Use GitHub's private vulnerability reporting:
-**Security tab -> "Report a vulnerability"** on this repository.
+<https://github.com/TurlaFSB/logshield/security/advisories/new>
+(or the **Security** tab, then **Report a vulnerability**). Reports there are
+visible only to the maintainer until a fix is published.
 
 Please include:
 
