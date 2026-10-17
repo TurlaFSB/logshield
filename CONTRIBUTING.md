@@ -27,8 +27,8 @@ make integration  # proxy in front of real Node, Python and JDK backends
 ```
 
 Commits should be small and focused, with an imperative subject line
-(`engine: bound decode depth`). Open a pull request against `main`; CI must be
-green.
+(`engine: bound decode depth`). Open a pull request against `main`; `main` is protected, so every change
+merges through a pull request with green CI (squash merge, linear history).
 
 ## Reporting security issues
 

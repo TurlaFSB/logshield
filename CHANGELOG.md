@@ -6,6 +6,12 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 
 ## [Unreleased]
 
+### Added
+- `GOVERNANCE.md`, and a documented advisory and CVE process in `SECURITY.md`.
+
+### Changed
+- `SECURITY.md` supported-versions table; `docs/releasing.md` states that breaking changes may land in a minor release below 1.0.
+
 ## [0.1.0] - 2026-10-17
 
 First stable release. It is the 0.1.0-rc.1 candidate (below) plus the TLS change listed here, proven end to end by the release pipeline and by the lab (107 of 107 real Log4j JNDI lookups flagged, no miss, leak or false positive). Verify what you download as described in [docs/releasing.md](docs/releasing.md), run in monitor mode first, and read [docs/threat-model.md](docs/threat-model.md).
