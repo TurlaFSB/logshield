@@ -2,6 +2,8 @@
 # Sends a steady mix of normal and attack-shaped requests through LogShield so
 # the dashboard has something to show. Every attack host is a reserved ".invalid"
 # name, so nothing can connect anywhere.
+# The single quotes are deliberate: the payloads must reach LogShield literally.
+# shellcheck disable=SC2016
 TARGET="${TARGET:-http://logshield:8080}"
 i=0
 while true; do
