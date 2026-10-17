@@ -8,8 +8,11 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 
 ### Added
 - `GOVERNANCE.md`, and a documented advisory and CVE process in `SECURITY.md`.
+- Log-event schema in `docs/observability.md`, and tests that fail when a metric or a log field is added, renamed or retyped without being documented.
+- CISA secure-by-design mapping in `docs/assurance.md`, including why monitor mode is the default.
 
 ### Changed
+- The startup message that says monitor mode does not block is now a warning, so it shows at `-log-level warn`.
 - `SECURITY.md` supported-versions table; `docs/releasing.md` states that breaking changes may land in a minor release below 1.0.
 
 ## [0.1.0] - 2026-10-17
