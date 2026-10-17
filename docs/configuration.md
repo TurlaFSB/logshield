@@ -62,6 +62,25 @@ Credentials in the upstream URL are rejected; the proxy does not forward
 authentication and never prints the upstream's userinfo. A complete example is in
 [examples/logshield.example.json](../examples/logshield.example.json).
 
+## Profiles
+
+Two ready-made files ship in `examples/`; both fail closed.
+
+| | `logshield.example.json` (balanced) | `logshield.hardened.json` |
+|---|---|---|
+| Mode | `monitor`: log what would be blocked | `block` |
+| Suspicious requests | forwarded and logged | **blocked** (`block_suspicious`) |
+| Use it for | first deployment, tuning, hosts that receive documentation or template content | hosts that cannot be patched, where nothing legitimate sends Log4j syntax |
+
+What the stricter policy costs and buys, measured against real Log4j 2.14.1 in
+the lab ([lab.md](lab.md)): it blocked 26 more requests and left no
+`${env:...}`, `${sys:...}` or `${java:...}` lookup able to reach Log4j. Of
+2,111 benign requests it blocked 8, all hand-written look-alikes that
+literally contain Log4j lookup syntax in a query value (five of them are
+resolved by a vulnerable Log4j, which printed the host's home directory). None
+of 2,000 generated realistic requests was blocked. Detections of real JNDI
+lookups are identical in both profiles (107 of 107 caught).
+
 The file is JSON, not YAML or TOML, so the project stays dependency-free; JSON has
 no comments, so keep notes in your deployment tooling.
 

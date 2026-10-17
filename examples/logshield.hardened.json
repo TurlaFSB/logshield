@@ -1,0 +1,15 @@
+{
+  "listen": "0.0.0.0:8080",
+  "upstream": "http://10.0.0.5:8080",
+  "mode": "block",
+  "block_suspicious": true,
+  "on_error": "closed",
+  "max_body_bytes": 1048576,
+  "skip_body_types": ["image/", "video/"],
+  "forwarded_for": "replace",
+  "rewrite_host": false,
+  "admin_listen": "127.0.0.1:9090",
+  "max_in_flight": 1024,
+  "log_level": "info",
+  "disabled_rules": []
+}

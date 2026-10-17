@@ -50,6 +50,9 @@ make build
 
 # Then enforce.
 ./bin/logshield -upstream http://127.0.0.1:8081 -mode block
+
+# Hosts that cannot be patched: also block suspicious Log4j syntax.
+./bin/logshield -upstream http://127.0.0.1:8081 -mode block -block-suspicious
 ```
 
 A real run in block mode (the payload points at a reserved `.invalid` name and
@@ -150,6 +153,7 @@ Rules are stable IDs (`LSH-1001` to `LSH-3003`) mapped to CVEs; see
 |---|---|---|
 | Bypass corpus (165 entries, 14 classes, provenance per entry) not blocked | 0 | **0** |
 | Benign requests blocked (111 hand-written + 100,000 generated) | < 0.1% (95% bound) | **0**, bound < 0.0038% |
+| Against real vulnerable Log4j 2.14.1 in the lab: JNDI lookups Log4j attempted / flagged / forwarded to it | all flagged | **107 / 107 / 0** ([lab](docs/lab.md)) |
 | Added latency through the proxy, 1 client (p99) | < 5 ms | **0.7 ms** ([load report](docs/load-report.md)) |
 | Engine cost per request | well under the 5 ms p99 budget | about 4 to 10 µs typical, about 3 ms worst case before fail-closed |
 | Test coverage | at least 97% total, 98% engine | 99.1% total, 99.5% engine |
@@ -161,9 +165,10 @@ in front of real Node.js, Python and JDK servers. Full report:
 [docs/engine/testing.md](docs/engine/testing.md); latency:
 [docs/performance.md](docs/performance.md).
 
-**Read the numbers honestly.** The corpus is validated against this project's own
-model of Log4j until differential testing against a real vulnerable Log4j in the
-lab (roadmap step 3c), and the benign corpus is synthetic. Both are stated in the
+**Read the numbers honestly.** The lab row is one Log4j version (2.14.1), one
+JDK (OpenJDK 8) and one logging path, and the oracle is "Log4j attempted a JNDI
+lookup", not a working exploit ([limits](docs/lab.md)). The benign corpus is
+synthetic. Both are stated in the
 [threat model](docs/threat-model.md), together with the known gaps (Unicode
 normalization beyond fullwidth, application-specific encodings, payloads split
 across requests).

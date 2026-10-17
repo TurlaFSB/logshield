@@ -1,6 +1,7 @@
 package config
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -241,5 +242,22 @@ func TestTimeouts(t *testing.T) {
 	s.ClientWriteTimeout = "0s"
 	if cfg, err := s.ProxyConfig(nil); err != nil || cfg.ClientWriteTimeout >= 0 {
 		t.Errorf("0s must disable the write timeout: %v %v", cfg.ClientWriteTimeout, err)
+	}
+}
+
+func TestShippedExamplesAreValid(t *testing.T) {
+	for _, name := range []string{"logshield.example.json", "logshield.hardened.json"} {
+		t.Run(name, func(t *testing.T) {
+			s := Defaults()
+			if err := s.LoadFile(filepath.Join("..", "..", "examples", name)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.ProxyConfig(slog.New(slog.NewTextHandler(io.Discard, nil))); err != nil {
+				t.Fatal(err)
+			}
+			if name == "logshield.hardened.json" && (s.Mode != "block" || !s.BlockSuspicious || s.OnError != "closed") {
+				t.Fatalf("hardened profile must block, block suspicious and fail closed: %+v", s)
+			}
+		})
 	}
 }

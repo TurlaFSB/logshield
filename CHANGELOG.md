@@ -7,6 +7,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 ## [Unreleased]
 
 ### Added
+- Hardened profile (`examples/logshield.hardened.json`: block mode plus `block_suspicious`), tested to load, and the measured cost and benefit of the stricter policy.
 - Lab for differential validation against real Log4j 2.14.1: canary with a hermetic JNDI hook, logging-only listener, `labrun`, a verifying bundle script (`lab/bundle.py`) and `docs/lab.md`.
 - Reverse proxy (`internal/proxy`, `cmd/logshield`): monitor and block modes,
   request normalization with a forwarded-equals-inspected guard, rejection of
