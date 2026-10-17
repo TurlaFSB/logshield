@@ -17,6 +17,7 @@ independently):
 Builds, if `go` is on PATH: static linux/amd64 `labrun` and `logshield`.
 Nothing here executes downloaded code.
 """
+
 import argparse
 import hashlib
 import json
@@ -30,8 +31,10 @@ import urllib.request
 
 LOG4J_VERSION = "2.14.1"
 CENTRAL = "https://repo1.maven.org/maven2/org/apache/logging/log4j"
-ADOPTIUM = ("https://api.adoptium.net/v3/assets/latest/8/hotspot"
-            "?architecture=x64&image_type=jdk&os=linux&vendor=eclipse")
+ADOPTIUM = (
+    "https://api.adoptium.net/v3/assets/latest/8/hotspot"
+    "?architecture=x64&image_type=jdk&os=linux&vendor=eclipse"
+)
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
 
@@ -64,7 +67,9 @@ def die(msg):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="lab-bundle")
-    ap.add_argument("--offline", action="store_true", help="do not download; use <out>/downloads")
+    ap.add_argument(
+        "--offline", action="store_true", help="do not download; use <out>/downloads"
+    )
     ap.add_argument("--skip-go", action="store_true", help="do not build Go binaries")
     a = ap.parse_args()
 
@@ -87,29 +92,39 @@ def main():
         fetch(link, jdk)
         got = digest(jdk, "sha256")
         if got != want:
-            die("JDK sha256 mismatch: publisher says %s, got %s" % (want, got))
+            die(f"JDK sha256 mismatch: publisher says {want}, got {got}")
         (dl / "jdk.release").write_text(rel + "\n" + link + "\n")
     elif not jdk.exists():
-        die("--offline but %s is missing" % jdk)
-    rel_txt = (dl / "jdk.release").read_text().split("\n")[0] if (dl / "jdk.release").exists() else "?"
+        die(f"--offline but {jdk} is missing")
+    rel_txt = (
+        (dl / "jdk.release").read_text().split("\n")[0]
+        if (dl / "jdk.release").exists()
+        else "?"
+    )
     shutil.copy(jdk, stage / jdk_name)
-    versions.append("jdk      %s  %s  (%s)" % (digest(jdk, "sha256"), jdk_name, rel_txt))
+    versions.append(
+        "jdk      {}  {}  ({})".format(digest(jdk, "sha256"), jdk_name, rel_txt)
+    )
 
     # --- Log4j -------------------------------------------------------------
     for art in ("log4j-core", "log4j-api"):
-        name = "%s-%s.jar" % (art, LOG4J_VERSION)
+        name = f"{art}-{LOG4J_VERSION}.jar"
         jar = dl / name
         if not a.offline:
-            url = "%s/%s/%s/%s" % (CENTRAL, art, LOG4J_VERSION, name)
+            url = f"{CENTRAL}/{art}/{LOG4J_VERSION}/{name}"
             fetch(url, jar)
             want = get_text(url + ".sha1").split()[0].strip().lower()
             got = digest(jar, "sha1")
             if got != want:
-                die("%s sha1 mismatch: Central says %s, got %s" % (name, want, got))
+                die(f"{name} sha1 mismatch: Central says {want}, got {got}")
         elif not jar.exists():
-            die("--offline but %s is missing" % jar)
+            die(f"--offline but {jar} is missing")
         shutil.copy(jar, stage / "lib" / name)
-        versions.append("log4j    %s  %s  (sha1 %s)" % (digest(jar, "sha256"), name, digest(jar, "sha1")))
+        versions.append(
+            "log4j    {}  {}  (sha1 {})".format(
+                digest(jar, "sha256"), name, digest(jar, "sha1")
+            )
+        )
 
     # --- sources, corpus, scripts -----------------------------------------
     for sub in ("listener", "canary"):
@@ -119,27 +134,64 @@ def main():
         shutil.copy(REPO / "lab" / s, stage / s)
 
     # --- Go binaries ------------------------------------------------------
-    commit = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip() or "unknown"
-    dirty = subprocess.run(["git", "-C", str(REPO), "status", "--porcelain"], capture_output=True, text=True).stdout.strip()
+    commit = (
+        subprocess.run(
+            ["git", "-C", str(REPO), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        or "unknown"
+    )
+    dirty = subprocess.run(
+        ["git", "-C", str(REPO), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
     if not a.skip_go and shutil.which("go"):
         env = dict(os.environ, GOOS="linux", GOARCH="amd64", CGO_ENABLED="0")
         for cmd in ("logshield", "labrun"):
-            r = subprocess.run(["go", "build", "-trimpath", "-ldflags=-s -w", "-o", str(stage / "bin" / cmd),
-                                "./cmd/" + cmd], cwd=REPO, env=env)
+            r = subprocess.run(
+                [
+                    "go",
+                    "build",
+                    "-trimpath",
+                    "-ldflags=-s -w",
+                    "-o",
+                    str(stage / "bin" / cmd),
+                    "./cmd/" + cmd,
+                ],
+                cwd=REPO,
+                env=env,
+                check=False,
+            )
             if r.returncode != 0:
-                die("go build %s failed" % cmd)
-            versions.append("binary   %s  bin/%s (linux/amd64, commit %s)" % (digest(stage / "bin" / cmd, "sha256"), cmd, commit[:12]))
+                die(f"go build {cmd} failed")
+            versions.append(
+                "binary   {}  bin/{} (linux/amd64, commit {})".format(
+                    digest(stage / "bin" / cmd, "sha256"), cmd, commit[:12]
+                )
+            )
     else:
-        print("bundle: no Go toolchain (or --skip-go): bin/ is empty; build labrun and logshield for linux/amd64 and add them", file=sys.stderr)
+        print(
+            "bundle: no Go toolchain (or --skip-go): bin/ is empty; build labrun and logshield for linux/amd64 and add them",
+            file=sys.stderr,
+        )
 
     (stage / "VERSIONS.txt").write_text(
-        "LogShield lab bundle\ncommit %s%s\n\n%s\n" % (commit, " (DIRTY working tree)" if dirty else "", "\n".join(versions)))
+        "LogShield lab bundle\ncommit {}{}\n\n{}\n".format(
+            commit, " (DIRTY working tree)" if dirty else "", "\n".join(versions)
+        )
+    )
 
     # --- manifest + archive ------------------------------------------------
     lines = []
     for p in sorted(stage.rglob("*")):
         if p.is_file() and p.name != "MANIFEST.sha256":
-            lines.append("%s  %s" % (digest(p, "sha256"), p.relative_to(stage).as_posix()))
+            lines.append(
+                "{}  {}".format(digest(p, "sha256"), p.relative_to(stage).as_posix())
+            )
     (stage / "MANIFEST.sha256").write_text("\n".join(lines) + "\n")
 
     tarball = out / "logshield-lab.tar.gz"
@@ -147,14 +199,16 @@ def main():
     def norm(ti):
         ti.uid = ti.gid = 0
         ti.uname = ti.gname = ""
-        if ti.isfile() and (ti.name.endswith(".sh") or ti.name.startswith("logshield-lab/bin/")):
+        if ti.isfile() and (
+            ti.name.endswith(".sh") or ti.name.startswith("logshield-lab/bin/")
+        ):
             ti.mode = 0o755
         return ti
 
     with tarfile.open(tarball, "w:gz") as t:
         t.add(stage, arcname="logshield-lab", filter=norm)
-    print("bundle: wrote %s" % tarball)
-    print("bundle: sha256 %s" % digest(tarball, "sha256"))
+    print(f"bundle: wrote {tarball}")
+    print("bundle: sha256 {}".format(digest(tarball, "sha256")))
     print("\n".join(versions))
 
 

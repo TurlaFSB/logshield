@@ -20,6 +20,6 @@ JAVAC="$HERE/jdk/bin/javac"
 CP="$HERE/lib/log4j-core-2.14.1.jar:$HERE/lib/log4j-api-2.14.1.jar"
 rm -rf classes && mkdir -p classes
 "$JAVAC" -source 8 -target 8 -d classes src/listener/Listener.java
-"$JAVAC" -source 8 -target 8 -cp "$CP" -d classes $(find src/canary -name '*.java')
+find src/canary -name '*.java' -print0 | xargs -0 "$JAVAC" -source 8 -target 8 -cp "$CP" -d classes
 echo "setup: compiled OK"
 [ -x bin/logshield ] && [ -x bin/labrun ] && echo "setup: binaries present" || echo "setup: WARNING bin/logshield or bin/labrun missing"

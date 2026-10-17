@@ -12,12 +12,14 @@
 # reserved names, and the hook canary refuses every lookup, so nothing leaves
 # this machine. The "real network" canary is used only by `faithful`, with a
 # payload that points at 127.0.0.1.
+# shellcheck disable=SC2086
 set -eu
 cd "$(dirname "$0")"
 HERE=$(pwd)
 RUN="$HERE/run"
 mkdir -p "$RUN"
 JAVA="$HERE/jdk/bin/java"
+# Intentionally unquoted where used: it is a list of JVM flags.
 JOPTS="-Xms16m -Xmx128m -XX:+UseSerialGC"
 CP="$HERE/classes:$HERE/lib/log4j-core-2.14.1.jar:$HERE/lib/log4j-api-2.14.1.jar"
 
@@ -73,12 +75,12 @@ cmd_start() {
   done
   echo "run: starting listener";    start_bg listener env LISTEN_ADDR=127.0.0.1 TCP_PORTS=$LISTENER_TCP,$LISTENER_RMI DNS_PORT=$LISTENER_DNS CONTROL_PORT=$LISTENER_CTRL \
     "$JAVA" $JOPTS -cp "$HERE/classes" Listener
-  waitfor http://127.0.0.1:$LISTENER_CTRL/health 30 && alive listener || fail_start listener
+  if ! { waitfor http://127.0.0.1:$LISTENER_CTRL/health 30 && alive listener; }; then fail_start listener; fi
   echo "run: starting canary (hook)"; start_bg canary-hook env CANARY_ADDR=127.0.0.1 CANARY_PORT=$CANARY_HOOK_PORT \
     "$JAVA" $JOPTS -Djava.naming.factory.url.pkgs=lab.jndi -cp "$CP" Canary
-  waitfor http://127.0.0.1:$CANARY_HOOK_PORT/lab-probe 60 && alive canary-hook || fail_start canary-hook
+  if ! { waitfor http://127.0.0.1:$CANARY_HOOK_PORT/lab-probe 60 && alive canary-hook; }; then fail_start canary-hook; fi
   echo "run: starting LogShield (block mode)"; start_logshield
-  waitfor http://127.0.0.1:$ADMIN_PORT/readyz 20 && alive logshield || fail_start logshield
+  if ! { waitfor http://127.0.0.1:$ADMIN_PORT/readyz 20 && alive logshield; }; then fail_start logshield; fi
   echo "run: all three components are up (the real-network canary starts only for 'faithful')"
 }
 
@@ -100,7 +102,7 @@ cmd_stop() {
 # does on the network. Positive probes must trigger in both; negative probes
 # (schemes the JDK cannot resolve) must trigger in neither.
 cmd_faithful() {
-  alive listener && alive canary-hook || { echo "faithful: run ./run.sh start first" >&2; exit 1; }
+  if ! { alive listener && alive canary-hook; }; then echo "faithful: run ./run.sh start first" >&2; exit 1; fi
   echo "faithful: starting the real-network canary"
   start_bg canary-real env CANARY_ADDR=127.0.0.1 CANARY_PORT=$CANARY_REAL_PORT "$JAVA" $JOPTS -cp "$CP" Canary
   waitfor http://127.0.0.1:$CANARY_REAL_PORT/lab-probe 60 || { echo "faithful: real canary did not start" >&2; tail -n 15 "$RUN/canary-real.log" >&2; kill "$(cat "$RUN/canary-real.pid")" 2>/dev/null || true; rm -f "$RUN/canary-real.pid"; exit 1; }
@@ -112,7 +114,7 @@ cmd_faithful() {
     sleep 1
     curl -fsS -m 20 -g -o "$RUN/faithful-hook.json" -H "User-Agent: $pay" http://127.0.0.1:$CANARY_HOOK_PORT/f
     curl -fsS -m 5 "http://127.0.0.1:$LISTENER_CTRL/events?after=0" >"$RUN/faithful-events.json"
-    net=$(grep -o '"kind":"tcp","port":'$port',' "$RUN/faithful-events.json" | wc -l | tr -d ' ')
+    net=$(grep -o '"kind":"tcp","port":'"$port"',' "$RUN/faithful-events.json" | wc -l | tr -d ' ')
     if grep -q '"jndi":\["' "$RUN/faithful-hook.json"; then hook=yes; else hook=no; fi
     if [ "$expect" = yes ]; then
       if [ "$net" -ge 1 ] && [ "$hook" = yes ]; then res=PASS; else res=FAIL; fi
@@ -143,7 +145,7 @@ cmd_run() {
 # (-block-suspicious), to measure what the stricter policy would catch and cost.
 # Expect FALSE_POSITIVE rows for benign look-alikes: that is the cost being measured.
 cmd_strict() {
-  alive listener && alive canary-hook || { echo "strict: run ./run.sh start first" >&2; exit 1; }
+  if ! { alive listener && alive canary-hook; }; then echo "strict: run ./run.sh start first" >&2; exit 1; fi
   stop_logshield
   start_logshield -block-suspicious
   waitfor http://127.0.0.1:$ADMIN_PORT/readyz 20 || { echo "strict: logshield did not become ready" >&2; tail -n 15 "$RUN/logshield.log" >&2; exit 1; }
