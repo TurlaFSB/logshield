@@ -31,6 +31,24 @@ jobs:
         with:
           version: v2.5.0
 
+  scripts:
+    name: Lab scripts (shellcheck, ruff)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: shellcheck -S style lab/*.sh scripts/*.sh
+      - name: POSIX syntax check
+        run: for f in lab/*.sh scripts/*.sh; do sh -n "$f"; done
+      - name: ruff
+        run: |
+          python3 -m pip install --quiet ruff==0.16.8
+          ruff check lab/bundle.py
+          ruff format --check lab/bundle.py
+
   test:
     name: Test (${{ matrix.os }}, Go ${{ matrix.go }})
     runs-on: ${{ matrix.os }}
