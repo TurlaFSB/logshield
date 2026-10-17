@@ -207,32 +207,39 @@ func TestNewTransportVerifiesUpstreamCertificates(t *testing.T) {
 }
 
 // handshake connects a TLS 1.2 client restricted to the given suites to a server
-// built from cfg, and reports whether the handshake succeeded.
+// built from srvCfg, and reports whether the handshake succeeded.
 func handshake(t *testing.T, srvCfg *tls.Config, pool *x509.CertPool, suites []uint16) error {
 	t.Helper()
-	ln, err := tls.Listen("tcp", "127.0.0.1:0", srvCfg)
-	if err != nil {
-		t.Fatal(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var lc net.ListenConfig
+	raw, listenErr := lc.Listen(ctx, "tcp", "127.0.0.1:0")
+	if listenErr != nil {
+		t.Fatal(listenErr)
 	}
-	defer ln.Close()
+	ln := tls.NewListener(raw, srvCfg)
+	defer func() { _ = ln.Close() }()
 	go func() {
-		c, err := ln.Accept()
-		if err != nil {
+		c, acceptErr := ln.Accept()
+		if acceptErr != nil {
 			return
 		}
 		if tc, ok := c.(*tls.Conn); ok {
-			_ = tc.Handshake()
+			_ = tc.HandshakeContext(ctx)
 		}
 		_ = c.Close()
 	}()
-	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+
+	d := tls.Dialer{Config: &tls.Config{
 		RootCAs: pool, ServerName: "localhost",
 		MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS12, CipherSuites: suites,
-	})
-	if err == nil {
+	}}
+	c, dialErr := d.DialContext(ctx, "tcp", ln.Addr().String())
+	if dialErr == nil {
 		_ = c.Close()
 	}
-	return err
+	return dialErr
 }
 
 func TestDefaultTLSCipherSuitesAreForwardSecretAEADOnly(t *testing.T) {
@@ -252,10 +259,10 @@ func TestDefaultTLSCipherSuitesAreForwardSecretAEADOnly(t *testing.T) {
 			}
 		}
 	}
-	if err := handshake(t, def, pool, gcm); err != nil {
-		t.Errorf("AEAD client refused by default: %v", err)
+	if hsErr := handshake(t, def, pool, gcm); hsErr != nil {
+		t.Errorf("AEAD client refused by default: %v", hsErr)
 	}
-	if err := handshake(t, def, pool, cbc); err == nil {
+	if hsErr := handshake(t, def, pool, cbc); hsErr == nil {
 		t.Error("CBC client accepted by default")
 	}
 
@@ -266,7 +273,7 @@ func TestDefaultTLSCipherSuitesAreForwardSecretAEADOnly(t *testing.T) {
 	if legacy.CipherSuites != nil {
 		t.Error("legacy mode should use Go's default suite list")
 	}
-	if err := handshake(t, legacy, pool, cbc); err != nil {
-		t.Errorf("CBC client refused in legacy mode: %v", err)
+	if hsErr := handshake(t, legacy, pool, cbc); hsErr != nil {
+		t.Errorf("CBC client refused in legacy mode: %v", hsErr)
 	}
 }
