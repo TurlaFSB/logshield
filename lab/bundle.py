@@ -157,7 +157,10 @@ def main():
                     "go",
                     "build",
                     "-trimpath",
-                    "-ldflags=-s -w",
+                    "-ldflags=-s -w -X {pkg}.Version=lab-{c} -X {pkg}.Commit={c}".format(
+                        pkg="github.com/TurlaFSB/logshield/internal/version",
+                        c=commit[:12],
+                    ),
                     "-o",
                     str(stage / "bin" / cmd),
                     "./cmd/" + cmd,
