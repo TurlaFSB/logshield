@@ -115,8 +115,8 @@ verbatim targets, a request smuggled inside a body staying a body, chunked bodie
 re-framed with exactly one `Content-Length`, pipelined requests staying separate,
 headers unfolded, malformed requests never delivered, and blocked attacks never
 reaching the backend (the backend's request counter proves it). CI runs it with
-`REQUIRE_BACKENDS=1`. Differential testing against a *vulnerable Log4j* is still
-Step 3c.
+`REQUIRE_BACKENDS=1`. Differential testing against a *vulnerable Log4j* is done
+in the lab; see [lab.md](lab.md).
 
 ## Known limitations
 
@@ -131,4 +131,4 @@ Step 3c.
 - `TE: trailers` and similar end-to-end-looking headers are relayed by
   `httputil.ReverseProxy`; they are inspected like any other header.
 - WebSocket and other `Upgrade` traffic is not supported.
-- Load and latency measurement (the p99 target) are Step 2c.
+- Throughput and latency are measured in [load-report.md](load-report.md); the p99 target is met on the lab host, not guaranteed on yours.

@@ -12,10 +12,12 @@ what Log4j would see in each request, and blocks exploit attempts before they
 reach the host. It is a **compensating control**, not a fix: patch, remove
 `JndiLookup`, or retire the host as soon as you can.
 
-> **Status: pre-alpha.** The inspection engine, the proxy (HTTP/1.1, HTTPS and HTTP/2,
-> metrics, health checks, configuration) work and are heavily tested, but there is no
-> release yet and the detection corpus has not yet been validated against a real vulnerable
-> Log4j. Do not rely on it in production. See the [roadmap](docs/ROADMAP.md).
+> **Status: pre-release.** The inspection engine and the proxy (HTTP/1.1, HTTPS and HTTP/2,
+> metrics, health checks, configuration) are heavily tested, and the detection corpus has
+> been validated in a lab against real Log4j 2.14.1 (107 of 107 JNDI attempts caught, 0
+> misses, 0 false positives; see [the lab report](docs/lab-report.md)). There is no tagged
+> release yet, so pin a commit and test in monitor mode before relying on it. See the
+> [roadmap](docs/ROADMAP.md).
 
 ## Why a proxy, and why not just a regex
 
@@ -156,7 +158,7 @@ Rules are stable IDs (`LSH-1001` to `LSH-3003`) mapped to CVEs; see
 | Against real vulnerable Log4j 2.14.1 in the lab: JNDI lookups Log4j attempted / flagged / forwarded to it | all flagged | **107 / 107 / 0** ([report](docs/lab-report.md)) |
 | Added latency through the proxy, 1 client (p99) | < 5 ms | **0.7 ms** ([load report](docs/load-report.md)) |
 | Engine cost per request | well under the 5 ms p99 budget | about 4 to 10 µs typical, about 3 ms worst case before fail-closed |
-| Test coverage | at least 97% total, 98% engine | 99.1% total, 99.5% engine |
+| Test coverage | at least 97% total, 98% engine | 97.5% total, 99.5% engine |
 
 Plus property tests, fuzzing (every PR, plus a weekly long run), race-detector
 tests, a hostile-request suite for the proxy, and integration tests with the proxy
@@ -185,6 +187,7 @@ test against systems you do not own or have written authorization to test.
 | Topic | Where |
 |---|---|
 | Proxy design, policies, limitations | [docs/proxy.md](docs/proxy.md) |
+| Lab: design, oracle, containment, reference report | [docs/lab.md](docs/lab.md), [docs/lab-report.md](docs/lab-report.md) |
 | Threat model and residual risk | [docs/threat-model.md](docs/threat-model.md) |
 | Decoder, resolver, rules | [docs/engine/](docs/engine/) |
 | Testing strategy | [docs/engine/testing.md](docs/engine/testing.md) |

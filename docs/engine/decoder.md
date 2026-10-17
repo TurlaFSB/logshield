@@ -1,7 +1,7 @@
-# Decoder (Step 1b)
+# Decoder
 
 `engine.Decode` turns one untrusted string into every plausible decoded variant
-("stages"). Rules (added in later steps) inspect all stages, because the
+("stages"). Rules inspect all stages, because the
 application that eventually logs the value may apply any subset of these
 decodings, and the payload only has to be dangerous at the point Log4j sees it.
 
@@ -63,7 +63,7 @@ They are tracked here so the omission is a decision, not an oversight.
   declared EBCDIC charset (see [rules](rules.md)).
 - Full Unicode normalization beyond the fullwidth fold above.
 
-If lab validation in Step 3 shows a real stack doing any of these, it becomes a
+If lab validation shows a real stack doing any of these, it becomes a
 transform with a regression entry in the bypass corpus.
 
 ## Safety properties (tested)

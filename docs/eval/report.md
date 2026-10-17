@@ -72,7 +72,7 @@ Public sources used:
 
 ## Scope and limits
 
-- Measured against the engine's own model of Log4j; it has not yet been validated against a real vulnerable Log4j (Step 3c).
+- Measured against the engine's own model of Log4j; real-Log4j validation is reported separately in docs/lab-report.md.
 - The benign corpus is synthetic plus hand-written look-alikes, not production traffic. Expect the real false-positive rate to differ; run the proxy in monitor mode first.
 - Suspicious verdicts (surfaced, not blocked) on benign look-alikes are reported above and are not counted as false positives.
 - Payloads are inert: reserved names only (RFC 2606, 5737).

@@ -103,7 +103,7 @@ func (r Report) Markdown() string {
 	b.WriteString(strings.Join(refs, "\n") + "\n\n")
 
 	b.WriteString("## Scope and limits\n\n")
-	b.WriteString("- Measured against the engine's own model of Log4j; it has not yet been validated against a real vulnerable Log4j (Step 3c).\n")
+	b.WriteString("- Measured against the engine's own model of Log4j; real-Log4j validation is reported separately in docs/lab-report.md.\n")
 	b.WriteString("- The benign corpus is synthetic plus hand-written look-alikes, not production traffic. Expect the real false-positive rate to differ; run the proxy in monitor mode first.\n")
 	b.WriteString("- Suspicious verdicts (surfaced, not blocked) on benign look-alikes are reported above and are not counted as false positives.\n")
 	b.WriteString("- Payloads are inert: reserved names only (RFC 2606, 5737).\n")

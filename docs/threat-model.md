@@ -1,7 +1,8 @@
-# Threat model (draft)
+# Threat model
 
-This is an early version, written before the proxy exists so that design
-decisions are made against it. Step 3e finalizes it with lab results.
+This document states what LogShield defends, against whom, and what it does not
+defend. Design decisions are made against it, and it is updated whenever the
+evidence changes (the lab results are in [lab-report.md](lab-report.md)).
 
 ## What LogShield protects
 
@@ -27,7 +28,7 @@ remain the correct mitigations.
 | Request line, path, query | Decoded and resolved |
 | Header names and values (User-Agent, X-Forwarded-For, X-Api-Version, Referer, Cookie, custom) | Decoded and resolved |
 | Request bodies: JSON, form, XML, multipart, gzip | Decoded and resolved within size limits |
-| Obfuscation: nested lookups, defaults, case games, Unicode, layered encodings | Engine (Steps 1b and 1c) |
+| Obfuscation: nested lookups, defaults, case games, Unicode, layered encodings | Engine |
 | Engine denial of service: decompression bombs, deep nesting, huge inputs | Bounded, fail-closed (ADR 0002) |
 | Data exfiltration via nested environment lookups in the JNDI key | Reported as a distinct signal |
 
@@ -48,7 +49,7 @@ remain the correct mitigations.
 2. **Inspect what the backend will see.** A proxy and a backend that parse the
    same request differently (header folding, duplicate headers, `Content-Length`
    versus `Transfer-Encoding`, chunk extensions, invalid characters, HTTP/2 to
-   HTTP/1 translation) let an attacker hide a payload from the proxy. Step 2
+   HTTP/1 translation) let an attacker hide a payload from the proxy. The proxy
    must forward exactly the bytes it inspected and reject ambiguous requests
    instead of guessing.
 3. **Log safely.** The proxy's own logs must defang `${` so they cannot trigger
@@ -87,9 +88,9 @@ Known gaps, tracked deliberately:
 Any signature-style control can be bypassed by an encoding it does not model. The
 project measures this instead of ignoring it: a bypass corpus with provenance, a
 benign corpus for false positives, and differential validation against a real
-vulnerable Log4j in the lab (Step 3c).
+vulnerable Log4j in the lab ([lab.md](lab.md), [lab-report.md](lab-report.md)).
 
-## Proxy-level differentials (Step 2a)
+## Proxy-level differentials
 
 The proxy removes framing differentials toward the backend by re-serializing
 every request (single `Content-Length`, no `Transfer-Encoding`, no trailers),

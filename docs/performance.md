@@ -14,7 +14,7 @@ forwarded. With 32 clients the machine is saturated by the load generator, the p
 and the upstream together, so latency there is CPU queueing: the proxy sustains about
 8,700 requests/s on two shared cores (the engine is about 40% of the proxy's CPU; the
 rest is Go's HTTP server and client). Measure on production-class hardware before
-sizing a deployment; the lab runs (Step 3b) repeat this on a dedicated host.
+sizing a deployment; the lab harness (`docs/lab.md`) validates detection, not throughput, so repeat the benchmark on your own hardware.
 
 CI runs a short version (`load-smoke`) that fails if added p99 with one client
 exceeds 5 ms, which catches order-of-magnitude regressions on noisy shared runners.
@@ -67,4 +67,4 @@ Reading the numbers:
 ## Not yet measured
 
 Memory under concurrent load, throughput and latency on production-class hardware
-(Step 3b), and behavior on production-shaped traffic.
+and behavior on production-shaped traffic.

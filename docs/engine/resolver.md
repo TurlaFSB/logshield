@@ -1,4 +1,4 @@
-# Lookup resolver (Step 1c)
+# Lookup resolver
 
 `engine.Resolve` answers one question about a decoded string: does it make
 Log4j perform a JNDI lookup, however that is spelled? It is a small emulator of

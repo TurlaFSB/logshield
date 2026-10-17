@@ -23,7 +23,7 @@ The `internal/engine` package must be:
 5. **Deterministic**: identical input produces identical verdict and rule IDs.
 
 Whether the proxy fails open or closed on *engine or upstream failure* is a
-separate, explicit operator setting decided in Step 2. Budget exhaustion inside
+separate, explicit operator setting (`on_error`, see the proxy documentation). Budget exhaustion inside
 the engine is always a block.
 
 ## Consequences
