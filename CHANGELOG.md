@@ -7,6 +7,7 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 ## [Unreleased]
 
 ### Added
+- `docs/challenge.md`: an open invitation to break LogShield, with what counts, the fastest way to test an idea with `logshield check`, how to confirm it against real Log4j in the lab, and what a reporter receives.
 - `examples/grafana`: a Grafana dashboard for the documented metrics, a one-command Docker Compose demo (LogShield, Prometheus, Grafana and a traffic generator), and a test that fails if the dashboard queries a metric that is not exposed.
 - `logshield check`: explain what the engine thinks of one payload (verdict, rules, decoding path, CVEs) without a proxy or a network. Defanged output, `-json`, script-friendly exit codes (0 clean, 3 suspicious, 4 malicious).
 - `GOVERNANCE.md`, and a documented advisory and CVE process in `SECURITY.md`.
