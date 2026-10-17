@@ -143,7 +143,7 @@ jobs:
           case "$v" in *-*) pre="--prerelease" ;; esac
           notes=$(mktemp)
           {
-            sed -n "/^## \[${v#v}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d'
+            awk -v h="## [${v#v}]" 'index($0, h) == 1 { f = 1; next } /^## \[/ { f = 0 } f' CHANGELOG.md
             echo
             echo "Image: \`${IMAGE}@${DIGEST}\`"
             echo

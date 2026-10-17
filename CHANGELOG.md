@@ -6,6 +6,10 @@ follow [Semantic Versioning](https://semver.org/) from the first tagged release.
 
 ## [Unreleased]
 
+## [0.1.0-rc.1] - 2026-10-17
+
+First release candidate. Pin a verified release, run in monitor mode first, and read [docs/threat-model.md](docs/threat-model.md).
+
 ### Added
 - OT/ICS guide (`docs/ot-ics.md`).
 - Final threat model: trust boundaries, attacks on LogShield itself, what the evidence does and does not show, operator responsibilities.
