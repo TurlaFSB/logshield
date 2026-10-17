@@ -1,0 +1,47 @@
+# Prometheus alerting rules for LogShield (metrics are documented in docs/observability.md).
+groups:
+  - name: logshield
+    rules:
+      - alert: LogShieldInspectionErrors
+        expr: increase(logshield_inspection_errors_total[5m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "LogShield engine errors (a bug); please report it"
+      - alert: LogShieldFailedOpen
+        expr: increase(logshield_failed_open_total[5m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "Requests were forwarded without inspection (on_error open)"
+      - alert: LogShieldOverloaded
+        expr: rate(logshield_rejections_total{reason="overloaded"}[5m]) > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "LogShield is shedding load; raise max_in_flight or add capacity"
+      - alert: LogShieldSlowInspection
+        expr: histogram_quantile(0.99, sum by (le) (rate(logshield_inspection_duration_seconds_bucket[5m]))) > 0.005
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "LogShield p99 inspection time above the 5 ms project target"
+      - alert: LogShieldAttackTraffic
+        expr: sum(increase(logshield_requests_total{action="blocked"}[5m])) > 0
+        labels: { severity: info }
+        annotations:
+          summary: "LogShield blocked Log4Shell attempts"
+      - alert: LogShieldMonitorModeAttack
+        expr: increase(logshield_monitor_would_block_total[5m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "Monitor mode let through requests that block mode would have stopped"
+      - alert: LogShieldBudgetExhausted
+        expr: sum(increase(logshield_budget_exhausted_total[5m])) > 10
+        labels: { severity: warning }
+        annotations:
+          summary: "Repeated engine budget exhaustion: possible resource-exhaustion attempt"
+      - alert: LogShieldDown
+        expr: up{job="logshield"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "LogShield is not being scraped; the protected application may be unprotected or unreachable"

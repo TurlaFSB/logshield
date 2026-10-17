@@ -1,0 +1,30 @@
+title: LogShield in monitor mode forwarded a request it rates malicious
+id: 568ab774-c53f-5948-9135-c7b07db808f3
+status: experimental
+description: LogShield is in monitor mode and let through a request that block mode would have stopped. The protected application received it.
+references:
+    - https://github.com/TurlaFSB/logshield/blob/main/docs/observability.md
+author: LogShield project
+date: 2026-10-17
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - cve.2021-44228
+logsource:
+    product: logshield
+    service: proxy
+detection:
+    selection:
+        msg: request flagged
+        would_block: true
+        action: forwarded
+    condition: selection
+fields:
+    - remote
+    - rules
+    - path
+    - host
+    - id
+falsepositives:
+    - Planned monitor-mode evaluation of LogShield
+level: high

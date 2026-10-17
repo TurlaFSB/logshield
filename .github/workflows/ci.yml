@@ -40,18 +40,29 @@ jobs:
         with:
           persist-credentials: false
       - name: shellcheck
-        run: shellcheck -S style lab/*.sh scripts/*.sh
+        run: shellcheck -S style lab/*.sh lab/test/*.sh scripts/*.sh
       - name: POSIX syntax check
-        run: for f in lab/*.sh scripts/*.sh; do sh -n "$f"; done
+        run: for f in lab/*.sh lab/test/*.sh scripts/*.sh; do sh -n "$f"; done
       - name: actionlint
         run: |
           python3 -m pip install --quiet actionlint-py==1.7.12.*
           actionlint .github/workflows/*.yml
+      - name: Sigma and Prometheus examples parse
+        run: |
+          python3 -m pip install --quiet pysigma==2.0.1 pyyaml
+          python3 - <<'PY'
+          import glob, yaml
+          from sigma.collection import SigmaCollection
+          for f in sorted(glob.glob("examples/sigma/*.yml")):
+              rules = SigmaCollection.from_yaml(open(f).read()).rules
+              assert rules and not [e for r in rules for e in r.errors], f
+          yaml.safe_load(open("examples/prometheus/logshield.rules.yml"))
+          PY
       - name: ruff
         run: |
           python3 -m pip install --quiet ruff==0.16.8
-          ruff check lab/bundle.py
-          ruff format --check lab/bundle.py
+          ruff check lab
+          ruff format --check lab
 
   image:
     name: Container image builds and runs unprivileged
@@ -229,6 +240,8 @@ jobs:
           REQUIRE_BACKENDS: "1"
       - name: Test the lab canary's raw HTTP reader
         run: make lab-java
+      - name: Smoke-test the lab control script
+        run: make lab-scripts
 
   load-smoke:
     name: Latency budget smoke test

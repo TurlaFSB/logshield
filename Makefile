@@ -18,7 +18,7 @@ GOVULNCHECK_VERSION := v1.8.0
 FUZZTIME ?= 30s
 FUZZ_TARGETS := engine:FuzzDecode engine:FuzzResolve engine:FuzzInspect corpus:FuzzMutatedCorpus proxy:FuzzNothingMaliciousLeaves
 
-.PHONY: help docker release-dry-run build test race cover cover-check fuzz bench eval integration load fmt vet lint vuln check
+.PHONY: help lab-scripts docker release-dry-run build test race cover cover-check fuzz bench eval integration load fmt vet lint vuln check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -82,6 +82,9 @@ integration: ## Run the proxy in front of real Node, Python and JDK backends (RE
 
 lab-java: ## Test the lab canary's HTTP reader and framework-decoding views (needs a JDK 11+)
 	rm -rf .lab-java && mkdir .lab-java && javac --release 8 -d .lab-java lab/canary/RawHttp.java lab/canary/AppViews.java && javac -d .lab-java -cp .lab-java lab/canary-test/RawHttpCheck.java lab/canary-test/AppViewsCheck.java && java -cp .lab-java RawHttpCheck && java -cp .lab-java AppViewsCheck && rm -rf .lab-java
+
+lab-scripts: ## Smoke-test lab/run.sh with a fake JDK and the real proxy (about 40 s)
+	lab/test/run-smoke.sh
 
 load: ## Measure proxy latency overhead and write docs/load-report.md (LOAD_DURATION seconds per phase)
 	cd internal/proxy && LOAD_REPORT=$(CURDIR)/docs/load-report.md go test -tags load -count=1 -run TestLatencyOverhead .

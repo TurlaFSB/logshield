@@ -46,3 +46,8 @@ queueing, in both monitor and block mode. Because each request can buffer up to
 1 GiB). A client that stops reading is cut off after `-client-write-timeout` (60 s of stall), so
 slow-read attacks cannot pin slots. Long-lived streams occupy a slot for as long as they last, so size the limit
 for your connection mix.
+
+## Ready-made alerting and detection content
+
+- [examples/prometheus/logshield.rules.yml](../examples/prometheus/logshield.rules.yml): Prometheus alerting rules for the conditions above.
+- [examples/sigma/](../examples/sigma/): [Sigma](https://sigmahq.io/) rules over LogShield's JSON log events (blocked attempts, attacks forwarded in monitor mode, fail-open events, budget exhaustion). Convert them for your SIEM with `sigma-cli`; the log source is `product: logshield`, and field names are the keys documented in the log event example in the README.

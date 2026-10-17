@@ -101,3 +101,51 @@ counted as `protocol-error`. Verified against Node.js, Python and JDK backends
 (`make integration`). Remaining: unsupported protocols (WebSocket) are refused,
 and HTTP/2 is terminated rather than relayed, with raw-frame tests for the known differentials (CRLF in values, `transfer-encoding`, `Host` versus `:authority`, trailers, cookie crumbs, interleaved streams); see [ADR 0005](adr/0005-tls-termination-and-http2.md). Details in
 [proxy](proxy.md).
+
+
+## Trust boundaries
+
+```
+ clients ──► [ TLS terminator ]? ──► LogShield ──► protected application (vulnerable Log4j)
+ (untrusted)                          │  ▲
+                                      │  └── configuration file / environment (trusted, operator)
+                                      └────► admin listener: /metrics /healthz /readyz (internal only)
+```
+
+Everything left of LogShield is untrusted input. The configuration and the
+admin network are trusted: whoever can change the configuration can disable the
+control, and whoever can reach the admin listener can read operational metrics.
+
+## Attacks on LogShield itself
+
+| Threat | Mitigation | Residual |
+|---|---|---|
+| Bypass by an encoding the engine does not model | Bypass corpus with provenance, fuzzing, differential validation against real Log4j ([lab-report.md](lab-report.md)) | Possible; see the known gaps above. Layered defences still apply |
+| Bypass by a parser differential between proxy and backend | Re-serialisation, verbatim target, forwarded-equals-inspected guard, ambiguous requests rejected, tested against Node.js, Python and JDK backends | Backends we did not test |
+| Resource exhaustion (decompression bombs, deep nesting, many fields, slow clients) | Hard budgets that fail closed (`LSH-3001` to `LSH-3003`), body and request limits, read and write timeouts, `max_in_flight` shedding | A volumetric flood is a network-layer problem |
+| The proxy's logs become an attack vector | `${` is defanged in every log line | Logs forwarded through other transformations are the operator's concern |
+| Spoofed client address | `X-Forwarded-For` is replaced with the connecting address by default; `append` is opt-in | Behind a terminator, configure `append` and trust only that hop |
+| Exposed admin listener | Off by default; separate listener; documented as internal only | No authentication on `/metrics`; bind it to loopback or an internal network |
+| Tampered configuration | Strict parsing (unknown keys refused), `-check-config`, `disabled_rules` validates IDs, mandatory rules cannot be disabled | A user who can write the file can still set `mode: monitor` |
+| Fail-open misconfiguration | Default is fail closed; `on_error: open` is explicit | Operator choice; alert on it |
+| Compromised release or dependency | Standard-library-only runtime, `govulncheck`, dependency review, actions pinned by commit, reproducible keyless-signed releases with provenance and SBOM ([releasing.md](releasing.md)) | Toolchain compromise is out of reach for any single project |
+| Compromised host running the proxy | None. The proxy runs unprivileged and hardened ([deployment.md](deployment.md)) | An attacker with code execution defeats it |
+
+## What the evidence supports
+
+| Claim | Evidence | What it does not show |
+|---|---|---|
+| Known public bypass techniques are blocked | 165-entry bypass corpus, 0 misses | Unknown techniques |
+| Ordinary traffic is not blocked | 111 hand-written and 100,000 generated benign requests, 0 blocked | Your production traffic |
+| The engine agrees with real Log4j | 107 of 107 JNDI attempts by Log4j 2.14.1 were flagged, none forwarded, none missed | Other Log4j versions, JDKs or logging paths; the oracle is "attempted a lookup", not a working exploit |
+| The proxy adds little latency | p99 0.7 ms at one client ([load-report.md](load-report.md)) | Production hardware and concurrency |
+| Over-blocking is limited | 40 attack-class entries blocked that Log4j ignored (for example unsupported schemes and unterminated lookups), 0 benign blocked | These are deliberate: blocking the whole class is safer than modelling what each Log4j version ignores |
+| Non-JNDI lookups pass in the default policy | The lab shows `env`, `sys`, `java`, `date` lookups resolved and forwarded as *suspicious* ([lab.md](lab.md)) | Use `block_suspicious` (the hardened profile) if those lookups matter for your application |
+
+## Operator responsibilities
+
+LogShield only helps when the operator does the following: make the application
+unreachable except through the proxy; start in monitor mode and review before
+blocking; keep the admin listener internal; alert on blocks and on fail-open
+events; and keep working towards the real fix (patch, remove `JndiLookup`, or
+retire the host).

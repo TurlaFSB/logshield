@@ -196,9 +196,10 @@ test against systems you do not own or have written authorization to test.
 | Architecture decisions | [docs/adr/](docs/adr/) |
 | Configuration file, environment, flags | [docs/configuration.md](docs/configuration.md) |
 | Deploying it: topologies, rollout, systemd, Kubernetes, nginx | [docs/deployment.md](docs/deployment.md) |
+| OT/ICS use: zones and conduits, compensating control, availability trade-off | [docs/ot-ics.md](docs/ot-ics.md) |
 | Versioning, release contents, verifying signatures and provenance | [docs/releasing.md](docs/releasing.md) |
 | Load and latency report | [docs/load-report.md](docs/load-report.md) |
-| Metrics, health checks, overload | [docs/observability.md](docs/observability.md) |
+| Metrics, health checks, overload, Prometheus and Sigma rules | [docs/observability.md](docs/observability.md) |
 | Roadmap and changelog | [docs/ROADMAP.md](docs/ROADMAP.md), [CHANGELOG.md](CHANGELOG.md) |
 
 ## Development

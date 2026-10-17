@@ -1,0 +1,27 @@
+title: LogShield engine budget exhausted
+id: 7f799f4f-cfba-593c-9029-626475974925
+status: experimental
+description: A request hit one of the engine's resource budgets (decompression, nesting, field count). It is treated as malicious. Repeated hits suggest a resource-exhaustion or evasion attempt.
+references:
+    - https://github.com/TurlaFSB/logshield/blob/main/docs/observability.md
+author: LogShield project
+date: 2026-10-17
+tags:
+    - attack.defense-evasion
+    - attack.t1027
+logsource:
+    product: logshield
+    service: proxy
+detection:
+    selection:
+        budget|exists: true
+    condition: selection
+fields:
+    - remote
+    - rules
+    - path
+    - host
+    - id
+falsepositives:
+    - Unusually large legitimate payloads
+level: medium
